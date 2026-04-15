@@ -1,5 +1,6 @@
 import React from 'react';
 import { Leaf, Search, User, MessageSquare } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const Navbar = () => {
   return (
@@ -24,10 +25,11 @@ const Navbar = () => {
       <div className="flex items-center gap-6 text-gray-600">
         <button className="hover:text-ecoGreen transition">Explore</button>
         <MessageSquare className="hover:text-ecoGreen cursor-pointer" size={22} />
-        <div className="flex items-center gap-1 cursor-pointer hover:text-ecoGreen transition">
-          <User size={22} />
-          <span className="text-sm font-medium">Login</span>
-        </div>
+        <div className="flex items-center gap-1 cursor-pointer hover:text-eco-green transition">
+  <User size={22} />
+  {/* Change "Login" span to a Link */}
+  <Link to="/register" className="text-sm font-medium">Join Now</Link>
+</div>
       </div>
     </nav>
   );

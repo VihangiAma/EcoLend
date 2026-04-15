@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* Your custom colors from earlier */
-:root {
+@theme {
   --color-eco-green: #2D5A27;
   --color-eco-light: #F0F7F0;
 }

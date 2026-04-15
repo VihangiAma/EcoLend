@@ -4,10 +4,12 @@ const db = require('./config/db');
 require('dotenv').config();
 
 const app = express();
+const authRoutes = require('./routes/authRoutes');
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/api/auth', authRoutes);
 
 // Test Route: Check if the server is healthy and connected to MySQL
 app.get('/api/test', async (req, res) => {
