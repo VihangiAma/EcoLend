@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { User, Mail, Lock, Sparkles, ArrowRight } from "lucide-react";
+import { User, Mail, Lock, Sparkles, ArrowRight, Phone } from "lucide-react"; // Added Phone icon
 import API from "../api/axios";
 
 // 1. Decorative Pattern Component
@@ -36,7 +36,14 @@ const InputField = ({ label, type, placeholder, value, onChange, icon, rightElem
 );
 
 export default function Register() {
-  const [form, setForm] = useState({ full_name: "", email: "", password: "" });
+  // UPDATED STATE: Added 'phone' to match MySQL schema
+  const [form, setForm] = useState({ 
+    full_name: "", 
+    email: "", 
+    password: "", 
+    phone: "" 
+  });
+  
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const navigate = useNavigate();
@@ -44,19 +51,29 @@ export default function Register() {
   const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      // Connect to your Backend Route
-      await API.post("/auth/register", form);
-      alert("Registration Successful! Redirecting to login...");
-      navigate("/login");
-    } catch (err) {
-      alert(err.response?.data?.message || "Registration failed. Try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  e.preventDefault();
+  setLoading(true);
+
+  // 1. Generate an auto-avatar using the user's name and your Eco-Green color (#2D5A27)
+  const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(form.full_name)}&background=2D5A27&color=fff&bold=true`;
+
+  try {
+    // 2. Spread the form and add the profile_img_url field
+    const registrationData = { 
+      ...form, 
+      profile_img_url: avatarUrl 
+    };
+
+    await API.post("/auth/register", registrationData);
+    
+    alert("Registration Successful!");
+    navigate("/login");
+  } catch (err) {
+    alert(err.response?.data?.message || "Registration failed.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="min-h-screen flex items-stretch bg-eco-light font-sans">
@@ -65,14 +82,13 @@ export default function Register() {
       <div className="hidden lg:flex w-[42%] bg-eco-green relative overflow-hidden flex-col justify-between p-12">
         <EcoPattern />
         
-        {/* Decorative Circle Elements */}
         <div className="absolute w-[400px] h-[400px] rounded-full border border-white/10 -top-20 -right-20" />
         <div className="absolute w-[300px] h-[300px] rounded-full border border-white/5 -bottom-20 -left-20" />
 
         <div className="relative z-10">
           <Link to="/" className="flex items-center gap-2 no-underline group">
             <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-md group-hover:scale-110 transition">
-               <Sparkles className="text-white" size={20} />
+                <Sparkles className="text-white" size={20} />
             </div>
             <span className="text-white font-black text-2xl tracking-tighter">EcoLend</span>
           </Link>
@@ -108,7 +124,7 @@ export default function Register() {
       <div className="flex-1 flex items-center justify-center p-8 bg-eco-light">
         <div className="w-full max-w-[420px]">
           
-          <div className="mb-10">
+          <div className="mb-10 text-center lg:text-left">
             <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-2">Create Account</h2>
             <p className="text-gray-500 font-medium">Be part of the neighborhood resource revolution.</p>
           </div>
@@ -126,6 +142,13 @@ export default function Register() {
               icon={<Mail size={18} />}
             />
 
+            {/* NEW FIELD: Phone Number (MySQL Schema: phone VARCHAR(20)) */}
+            <InputField 
+              label="Phone Number" type="tel" placeholder="+94 7X XXX XXXX" 
+              value={form.phone} onChange={update("phone")}
+              icon={<Phone size={18} />}
+            />
+
             <InputField 
               label="Password" 
               type={showPass ? "text" : "password"} 
@@ -136,16 +159,16 @@ export default function Register() {
                 <button 
                   type="button" 
                   onClick={() => setShowPass(!showPass)}
-                  className="text-gray-400 hover:text-eco-green transition"
+                  className="text-xs font-bold text-gray-400 hover:text-eco-green transition"
                 >
-                  {showPass ? "Hide" : "Show"}
+                  {showPass ? "HIDE" : "SHOW"}
                 </button>
               }
             />
 
             <button 
               disabled={loading}
-              className="w-full bg-eco-green text-white py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-opacity-95 hover:-translate-y-1 active:scale-[0.98] transition-all shadow-xl shadow-eco-green/20 mt-4"
+              className="w-full bg-eco-green text-white py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-opacity-95 hover:-translate-y-1 active:scale-[0.98] transition-all shadow-xl shadow-eco-green/20 mt-4 disabled:opacity-70"
             >
               {loading ? "Creating Account..." : "Create Free Account"}
               {!loading && <ArrowRight size={20} />}

@@ -27,6 +27,12 @@ const Navbar = () => {
   <Link to="/" className="hover:text-eco-green transition">Explore</Link>
   
   <MessageSquare className="hover:text-eco-green cursor-pointer" size={22} />
+  <Link 
+  to="/lend" 
+  className="bg-eco-green text-white px-5 py-2.5 rounded-xl font-bold text-sm hover:shadow-lg transition-all"
+>
+  + Lend Item
+</Link>
 
   {/* Login Link */}
   <Link to="/login" className="text-sm font-medium hover:text-eco-green transition">

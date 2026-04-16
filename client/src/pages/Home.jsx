@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react'; // Added useRef
+import { Link } from 'react-router-dom'; // Added Link for navigation
 import { MapPin, Zap, ArrowRight, ShieldCheck, Leaf, Users } from 'lucide-react';
 
 const categories = ["All", "Tools", "Electronics", "Camping", "Garden", "Kitchen"];
 
 const Home = () => {
   const [activeTab, setActiveTab] = useState("All");
+  
+  // Create a reference for the marketplace section to allow smooth scrolling
+  const marketplaceRef = useRef(null);
+
+  const scrollToMarketplace = () => {
+    marketplaceRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   return (
     <div className="flex-grow bg-eco-light">
@@ -26,12 +34,20 @@ const Home = () => {
         </p>
         
         <div className="flex flex-wrap justify-center gap-4">
-          <button className="bg-eco-green text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-eco-green/20 hover:-translate-y-1 transition-all flex items-center gap-2">
+          {/* Update: Added scrollToMarketplace */}
+          <button 
+            onClick={scrollToMarketplace}
+            className="bg-eco-green text-white px-10 py-4 rounded-2xl font-bold text-lg shadow-xl shadow-eco-green/20 hover:-translate-y-1 transition-all flex items-center gap-2"
+          >
             Start Browsing <ArrowRight size={20} />
           </button>
-          <button className="bg-white text-gray-900 border-2 border-gray-100 px-10 py-4 rounded-2xl font-bold text-lg hover:bg-gray-50 transition-all">
-            How it Works
-          </button>
+
+          {/* Update: Navigates to the Lend Item page */}
+          <Link to="/lend">
+            <button className="bg-white text-gray-900 border-2 border-gray-100 px-10 py-4 rounded-2xl font-bold text-lg hover:bg-gray-50 transition-all">
+              List an Item
+            </button>
+          </Link>
         </div>
       </main>
 
@@ -45,7 +61,8 @@ const Home = () => {
       </div>
 
       {/* 3. MARKETPLACE SECTION */}
-      <section className="bg-white rounded-t-[4rem] py-20 shadow-2xl shadow-gray-200">
+      {/* Added ref={marketplaceRef} so the button knows where to scroll */}
+      <section ref={marketplaceRef} className="bg-white rounded-t-[4rem] py-20 shadow-2xl shadow-gray-200">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
             <div>
@@ -104,7 +121,7 @@ const Home = () => {
   );
 };
 
-// Helper Components
+// Helper Components (Remain the Same)
 const FeatureCard = ({ icon, title, desc }) => (
   <div className="bg-white p-8 rounded-[2rem] border border-gray-100 flex items-start gap-4 hover:shadow-xl hover:shadow-eco-green/5 transition-all group">
     <div className="w-12 h-12 rounded-2xl bg-eco-light flex items-center justify-center shrink-0 group-hover:bg-eco-green group-hover:text-white transition-colors">

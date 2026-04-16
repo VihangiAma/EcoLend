@@ -5,11 +5,13 @@ require('dotenv').config();
 
 const app = express();
 const authRoutes = require('./routes/authRoutes');
+const aiRoutes = require('./routes/aiRoutes');
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use('/api/auth', authRoutes);
+app.use('/api/ai', aiRoutes); // This creates the /api/ai/generate-description path
 
 // Test Route: Check if the server is healthy and connected to MySQL
 app.get('/api/test', async (req, res) => {

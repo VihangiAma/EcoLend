@@ -3,7 +3,8 @@ import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Register from './pages/Register';
 import Login from './pages/Login';
-import Home from './pages/Home'; // <--- Add this import
+import Home from './pages/Home'; 
+import LendItem from './pages/LendItem'; 
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="/" element={<Home />} /> 
           <Route path="/register" element={<Register />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/lend" element={<LendItem />} />
         </Routes>
       </div>
     </div>
