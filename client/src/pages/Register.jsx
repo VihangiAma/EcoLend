@@ -1,53 +1,164 @@
-import React, { useState } from 'react';
-import API from '../api/axios';
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { User, Mail, Lock, Sparkles, ArrowRight } from "lucide-react";
+import API from "../api/axios";
 
-const Register = () => {
-  const [formData, setFormData] = useState({ full_name: '', email: '', password: '' });
-  const [message, setMessage] = useState('');
+// 1. Decorative Pattern Component
+const EcoPattern = () => (
+  <svg className="absolute inset-0 w-full h-full opacity-[0.04]" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <pattern id="leaf" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+        <path d="M30 5 C15 5, 5 15, 5 30 C5 45, 15 55, 30 55 C30 55, 30 30, 30 5Z" fill="#2D5A27"/>
+        <path d="M30 5 C45 5, 55 15, 55 30 C55 45, 45 55, 30 55 C30 55, 30 30, 30 5Z" fill="#2D5A27" opacity="0.5"/>
+      </pattern>
+    </defs>
+    <rect width="100%" height="100%" fill="url(#leaf)" />
+  </svg>
+);
+
+// 2. Modular Input Component
+const InputField = ({ label, type, placeholder, value, onChange, icon, rightElement }) => (
+  <div className="flex flex-col gap-1.5">
+    <label className="text-gray-900 font-semibold text-sm tracking-tight ml-1">{label}</label>
+    <div className="relative flex items-center">
+      {icon && <span className="absolute left-4 text-gray-400 pointer-events-none">{icon}</span>}
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        required
+        className="w-full pl-12 pr-4 py-3.5 rounded-2xl bg-white border border-gray-100 focus:border-eco-green focus:ring-4 focus:ring-eco-green/10 outline-none transition-all text-[15px] text-gray-900 shadow-sm"
+      />
+      {rightElement && <div className="absolute right-4">{rightElement}</div>}
+    </div>
+  </div>
+);
+
+export default function Register() {
+  const [form, setForm] = useState({ full_name: "", email: "", password: "" });
+  const [loading, setLoading] = useState(false);
+  const [showPass, setShowPass] = useState(false);
+  const navigate = useNavigate();
+
+  const update = (field) => (e) => setForm({ ...form, [field]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      const response = await API.post('/auth/register', formData);
-      setMessage(response.data.message);
+      // Connect to your Backend Route
+      await API.post("/auth/register", form);
+      alert("Registration Successful! Redirecting to login...");
+      navigate("/login");
     } catch (err) {
-      setMessage(err.response?.data?.message || "Registration failed");
+      alert(err.response?.data?.message || "Registration failed. Try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-eco-light px-4">
-      <form onSubmit={handleSubmit} className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full">
-        <h2 className="text-3xl font-bold text-eco-green mb-6 text-center">Join EcoLend</h2>
+    <div className="min-h-screen flex items-stretch bg-eco-light font-sans">
+      
+      {/* LEFT PANEL — BRANDING */}
+      <div className="hidden lg:flex w-[42%] bg-eco-green relative overflow-hidden flex-col justify-between p-12">
+        <EcoPattern />
         
-        <div className="space-y-4">
-          <input 
-            type="text" placeholder="Full Name" 
-            className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-eco-green"
-            onChange={(e) => setFormData({...formData, full_name: e.target.value})}
-            required
-          />
-          <input 
-            type="email" placeholder="Email Address" 
-            className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-eco-green"
-            onChange={(e) => setFormData({...formData, email: e.target.value})}
-            required
-          />
-          <input 
-            type="password" placeholder="Password" 
-            className="w-full p-3 border rounded-lg outline-none focus:ring-2 focus:ring-eco-green"
-            onChange={(e) => setFormData({...formData, password: e.target.value})}
-            required
-          />
-          <button className="w-full bg-eco-green text-white py-3 rounded-lg font-bold hover:bg-opacity-90 transition">
-            Create Account
-          </button>
+        {/* Decorative Circle Elements */}
+        <div className="absolute w-[400px] h-[400px] rounded-full border border-white/10 -top-20 -right-20" />
+        <div className="absolute w-[300px] h-[300px] rounded-full border border-white/5 -bottom-20 -left-20" />
+
+        <div className="relative z-10">
+          <Link to="/" className="flex items-center gap-2 no-underline group">
+            <div className="w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center backdrop-blur-md group-hover:scale-110 transition">
+               <Sparkles className="text-white" size={20} />
+            </div>
+            <span className="text-white font-black text-2xl tracking-tighter">EcoLend</span>
+          </Link>
         </div>
-        
-        {message && <p className="mt-4 text-center text-sm font-medium text-eco-green">{message}</p>}
-      </form>
+
+        <div className="relative z-10">
+          <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-1.5 backdrop-blur-md border border-white/10 mb-6">
+            <span className="text-xs font-bold text-white/90 tracking-wide uppercase">🌱 Circular Economy</span>
+          </div>
+          <h1 className="text-white font-black text-5xl leading-[1.1] tracking-tighter mb-6">
+            Share More.<br />Waste Less.<br />Live Better.
+          </h1>
+          <p className="text-white/70 text-lg max-w-sm leading-relaxed">
+            Join Sri Lanka's fastest growing hyper-local sharing network. Borrow tools, share equipment, and build a sustainable community.
+          </p>
+        </div>
+
+        <div className="relative z-10 bg-white/10 p-6 rounded-[2rem] border border-white/10 backdrop-blur-md">
+          <div className="flex gap-12 mb-2">
+            <div>
+              <div className="text-white font-black text-2xl">12K+</div>
+              <div className="text-white/50 text-xs font-bold uppercase tracking-widest">Active Lenders</div>
+            </div>
+            <div>
+              <div className="text-white font-black text-2xl">40T</div>
+              <div className="text-white/50 text-xs font-bold uppercase tracking-widest">CO₂ Saved</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT PANEL — FORM */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-eco-light">
+        <div className="w-full max-w-[420px]">
+          
+          <div className="mb-10">
+            <h2 className="text-3xl font-black text-gray-900 tracking-tighter mb-2">Create Account</h2>
+            <p className="text-gray-500 font-medium">Be part of the neighborhood resource revolution.</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <InputField 
+              label="Full Name" type="text" placeholder="Ama Vihangi" 
+              value={form.full_name} onChange={update("full_name")}
+              icon={<User size={18} />}
+            />
+
+            <InputField 
+              label="Email Address" type="email" placeholder="ama@example.com" 
+              value={form.email} onChange={update("email")}
+              icon={<Mail size={18} />}
+            />
+
+            <InputField 
+              label="Password" 
+              type={showPass ? "text" : "password"} 
+              placeholder="Min. 8 characters" 
+              value={form.password} onChange={update("password")}
+              icon={<Lock size={18} />}
+              rightElement={
+                <button 
+                  type="button" 
+                  onClick={() => setShowPass(!showPass)}
+                  className="text-gray-400 hover:text-eco-green transition"
+                >
+                  {showPass ? "Hide" : "Show"}
+                </button>
+              }
+            />
+
+            <button 
+              disabled={loading}
+              className="w-full bg-eco-green text-white py-4 rounded-2xl font-bold text-lg flex items-center justify-center gap-2 hover:bg-opacity-95 hover:-translate-y-1 active:scale-[0.98] transition-all shadow-xl shadow-eco-green/20 mt-4"
+            >
+              {loading ? "Creating Account..." : "Create Free Account"}
+              {!loading && <ArrowRight size={20} />}
+            </button>
+          </form>
+
+          <p className="text-center mt-10 text-gray-500 font-medium">
+            Already have an account? 
+            <Link to="/login" className="text-eco-green font-bold ml-2 hover:underline">Sign In</Link>
+          </p>
+        </div>
+      </div>
+
     </div>
   );
-};
-
-export default Register;
+}
