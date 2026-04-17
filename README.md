@@ -10,7 +10,7 @@ EcoLend is a full-stack web application designed to foster community sustainabil
 * **Backend:** Node.js, Express.js
 * **Database:** MySQL (Managed via MySQL Workbench)
 * **Real-time:** Socket.io (for Chat)
-* **AI Engine:** Google Gemini API (for Smart Descriptions)
+* **AI Engine:** Groq Cloud API (Llama-3/Mixtral).
 
 ---
 
