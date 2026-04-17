@@ -35,4 +35,22 @@ router.post('/add', async (req, res) => {
   }
 });
 
+// Get a single item by ID
+router.get('/:id', async (req, res) => {
+    try {
+        const [rows] = await db.execute(`
+            SELECT items.*, users.full_name as owner_name, users.profile_img_url as owner_avatar 
+            FROM items 
+            JOIN users ON items.owner_id = users.user_id 
+            WHERE items.item_id = ?`, 
+            [req.params.id]
+        );
+        
+        if (rows.length === 0) return res.status(404).json({ message: "Item not found" });
+        res.json(rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;
