@@ -35,21 +35,23 @@ export default function LendItem() {
   };
 
   const handleAiGenerate = async () => {
-    if (!form.title) return alert("Please enter an item name first!");
-    setAiGenerating(true);
-    try {
-      const res = await API.post("/ai/generate-description", { itemName: form.title });
+  if (!form.title) return alert("Please enter an item name first!");
+  setAiGenerating(true);
+  try {
+    // Ensure the path matches your backend index.js/server.js registration
+    const res = await API.post("/ai/generate-description", { itemName: form.title });
+    
+    // Groq returns the string in res.data.description
+    if (res.data.description) {
       setForm({ ...form, description: res.data.description });
-    } catch (err) {
-      if (err.response?.status === 429) {
-        alert("AI is a bit busy! Please wait 60 seconds.");
-      } else {
-        alert("AI generation failed.");
-      }
-    } finally {
-      setAiGenerating(false);
     }
-  };
+  } catch (err) {
+    console.error("AI Error:", err);
+    alert("AI service is currently unavailable. Please try again later.");
+  } finally {
+    setAiGenerating(false);
+  }
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -115,13 +117,16 @@ export default function LendItem() {
             <div className="flex flex-col gap-1.5">
               <div className="flex justify-between items-center ml-1">
                 <label className="font-bold text-sm text-gray-600">Description</label>
-                <button 
-                  type="button" onClick={handleAiGenerate} disabled={aiGenerating}
-                  className="text-xs font-bold text-eco-green flex items-center gap-1 hover:text-green-700 disabled:opacity-50 transition-colors"
-                >
-                  {aiGenerating ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>}
-                  {aiGenerating ? "Generating..." : "Generate with Gemini AI"}
-                </button>
+                {/* Change "Generate with Gemini AI" to "Generate with AI" */}
+<button 
+  type="button"
+  onClick={handleAiGenerate}
+  disabled={aiGenerating}
+  className="text-xs font-bold text-eco-green flex items-center gap-1 hover:underline disabled:opacity-50"
+>
+  {aiGenerating ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>}
+  {aiGenerating ? "Generating..." : "Generate with AI"} 
+</button>
               </div>
               <textarea 
                 rows="4" required
