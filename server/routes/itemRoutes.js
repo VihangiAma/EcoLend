@@ -53,4 +53,47 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+router.post('/add', async (req, res) => {
+    const { 
+        title, 
+        description, 
+        category, 
+        price_per_day, 
+        location_lat, 
+        location_lng, 
+        image_url 
+    } = req.body;
+
+    // Hardcoded for now until Auth is implemented
+    const owner_id = 1; 
+
+    try {
+        const sql = `
+            INSERT INTO items 
+            (owner_id, title, description, category, price_per_day, location_lat, location_lng, image_url) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        
+        const [result] = await db.execute(sql, [
+            owner_id, 
+            title, 
+            description, 
+            category, 
+            price_per_day, 
+            location_lat || null, // Handle optional lat
+            location_lng || null, // Handle optional lng
+            image_url
+        ]);
+
+        res.status(201).json({ 
+            success: true, 
+            message: "Item listed successfully!", 
+            itemId: result.insertId 
+        });
+    } catch (err) {
+        console.error("Insert Error:", err.message);
+        res.status(500).json({ error: "Database error: " + err.message });
+    }
+});
+
 module.exports = router;

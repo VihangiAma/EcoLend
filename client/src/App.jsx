@@ -4,6 +4,7 @@ import Header from "./components/Header";
 import Home from "./pages/Home";
 import LendItem from "./pages/LendItem";
 import Login from "./pages/Login";
+import ItemDetail from "./pages/ItemDetail";
 
 function App() {
   const location = useLocation();
@@ -23,6 +24,7 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/lend" element={<LendItem />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/items/:id" element={<ItemDetail />} />
             {/* Add other routes here */}
           </Routes>
         </main>

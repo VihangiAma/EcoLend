@@ -1,181 +1,187 @@
 import { useState } from "react";
-import { Sparkles, Package, Tag, MapPin, ArrowRight, Loader2 } from "lucide-react";
+import { Sparkles, Package, DollarSign, MapPin, Upload, Navigation } from "lucide-react";
 import API from "../api/axios";
+import { useNavigate } from "react-router-dom";
 
 export default function LendItem() {
-  const [loading, setLoading] = useState(false);
-  const [aiGenerating, setAiGenerating] = useState(false);
-
-  // Schema-aligned state
-  const [form, setForm] = useState({
+  const [formData, setFormData] = useState({
     title: "",
+    category: "Tools", // Matches ENUM
+    price_per_day: "",
     description: "",
-    category: "Tools", // ENUM: 'Tools', 'Electronics', 'Kitchen', 'Camping', 'Photography'
-    price_per_day: 0.00, // DECIMAL(10,2)
-    location_name: "Colombo", // For frontend UI
-    location_lat: 6.9271,
-    location_lng: 79.8612,
-    image_url: "https://images.unsplash.com/photo-1581235720704-06d3acfc1366?auto=format&fit=crop&q=80&w=400" // Default placeholder
+    image_url: "",
+    location_lat: null,
+    location_lng: null
   });
+  const [loading, setLoading] = useState(false);
 
-  // Helper to update location coordinates based on District
-  const handleLocationChange = (district) => {
-    const coords = {
-      Colombo: { lat: 6.9271, lng: 79.8612 },
-      Gampaha: { lat: 7.0840, lng: 80.0098 },
-      Kalutara: { lat: 6.5854, lng: 79.9607 }
-    };
-    
-    setForm({
-      ...form,
-      location_name: district,
-      location_lat: coords[district].lat,
-      location_lng: coords[district].lng
-    });
+  // Function to get Geo-location coordinates
+  const handleGetLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        setFormData({
+          ...formData,
+          location_lat: position.coords.latitude,
+          location_lng: position.coords.longitude
+        });
+        alert("Location captured!");
+      });
+    }
   };
 
-  const handleAiGenerate = async () => {
-  if (!form.title) return alert("Please enter an item name first!");
-  setAiGenerating(true);
-  try {
-    // Ensure the path matches your backend index.js/server.js registration
-    const res = await API.post("/ai/generate-description", { itemName: form.title });
-    
-    // Groq returns the string in res.data.description
-    if (res.data.description) {
-      setForm({ ...form, description: res.data.description });
-    }
-  } catch (err) {
-    console.error("AI Error:", err);
-    alert("AI service is currently unavailable. Please try again later.");
-  } finally {
-    setAiGenerating(false);
-  }
-};
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!form.description) return alert("Please add a description.");
-    
+  const handleGenerateAI = async () => {
+    if (!formData.title) return alert("Please enter a title first!");
     setLoading(true);
     try {
-      // Sends to your MySQL backend route
-      await API.post("/items/add", form);
-      alert("Success! Your item is listed in the Western Province network.");
-      // Reset form logic could go here
+      const res = await API.post("/ai/generate-description", { title: formData.title });
+      setFormData({ ...formData, description: res.data.description });
     } catch (err) {
-      console.error(err);
-      alert("Failed to list item. Ensure your backend and MySQL are running.");
+      console.error("AI Generation failed", err);
     } finally {
       setLoading(false);
     }
   };
+const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const res = await API.post("/items/add", formData);
+    if (res.data.success) {
+      // Navigate to home after successful listing
+      navigate("/"); 
+    }
+  } catch (err) {
+    alert("Listing failed. Check your connection.");
+  }
+};
 
   return (
-    <div className="min-h-screen bg-eco-light py-12 px-6 font-sans">
-      <div className="max-w-3xl mx-auto">
+    <div className="max-w-4xl mx-auto pb-10">
+      <div className="mb-8">
+        <h1 className="text-3xl font-black text-gray-900 leading-tight">Lend an Item</h1>
+        <p className="text-gray-400 font-medium">Match your gear with the community needs.</p>
+      </div>
+
+      <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-10">
         
-        <div className="mb-10 text-center">
-          <h1 className="text-4xl font-black text-gray-900 tracking-tighter italic">EcoLend</h1>
-          <p className="text-gray-500 font-medium mt-2">Western Province Sustainable Sharing</p>
+        {/* Left: General Details */}
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+              <Package size={16} className="text-green-800" /> Title
+            </label>
+            <input
+              type="text"
+              maxLength="150" // Matches VARCHAR(150)
+              className="w-full p-4 bg-gray-50 border-none rounded-3xl focus:ring-2 focus:ring-green-800 outline-none"
+              placeholder="What are you lending?"
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-gray-700">Category</label>
+            <select 
+              className="w-full p-4 bg-gray-50 border-none rounded-3xl outline-none appearance-none"
+              onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+              value={formData.category}
+            >
+              {['Tools', 'Electronics', 'Kitchen', 'Camping', 'Photography'].map(cat => (
+                <option key={cat} value={cat}>{cat}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+              <DollarSign size={16} className="text-green-800" /> Price Per Day (Rs.)
+            </label>
+            <input
+              type="number"
+              step="0.01" // Matches DECIMAL(10,2)
+              className="w-full p-4 bg-gray-50 border-none rounded-3xl focus:ring-2 focus:ring-green-800 outline-none"
+              placeholder="0.00"
+              onChange={(e) => setFormData({ ...formData, price_per_day: e.target.value })}
+              required
+            />
+          </div>
+
+          {/* Geo-Location Section */}
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+              <Navigation size={16} className="text-green-800" /> Coordinates (Optional)
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                readOnly
+                placeholder="Lat"
+                value={formData.location_lat || ""}
+                className="w-1/2 p-4 bg-gray-100 border-none rounded-3xl text-xs"
+              />
+              <input
+                type="text"
+                readOnly
+                placeholder="Lng"
+                value={formData.location_lng || ""}
+                className="w-1/2 p-4 bg-gray-100 border-none rounded-3xl text-xs"
+              />
+            </div>
+            <button 
+              type="button" 
+              onClick={handleGetLocation}
+              className="w-full py-2 text-xs font-bold text-green-800 hover:underline"
+            >
+              Fetch Current Location
+            </button>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          
-          {/* Section 1: Item Details */}
-          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm space-y-6">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-eco-green/10 rounded-xl text-eco-green"><Package size={20}/></div>
-              <h2 className="font-bold text-xl text-gray-800">Item Details</h2>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-sm ml-1 text-gray-600">Item Name</label>
-                <input 
-                  type="text" required placeholder="e.g. DSLR Camera" 
-                  className="w-full px-5 py-4 rounded-2xl bg-eco-light border-none focus:ring-2 focus:ring-eco-green/20 outline-none font-medium"
-                  value={form.title} onChange={(e) => setForm({...form, title: e.target.value})}
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="font-bold text-sm ml-1 text-gray-600">Category (MySQL Enum)</label>
-                <select 
-                  className="w-full px-5 py-4 rounded-2xl bg-eco-light border-none focus:ring-2 focus:ring-eco-green/20 outline-none font-medium appearance-none"
-                  value={form.category} onChange={(e) => setForm({...form, category: e.target.value})}
-                >
-                  <option value="Tools">Tools</option>
-                  <option value="Electronics">Electronics</option>
-                  <option value="Kitchen">Kitchen</option>
-                  <option value="Camping">Camping</option>
-                  <option value="Photography">Photography</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <div className="flex justify-between items-center ml-1">
-                <label className="font-bold text-sm text-gray-600">Description</label>
-                {/* Change "Generate with Gemini AI" to "Generate with AI" */}
-<button 
-  type="button"
-  onClick={handleAiGenerate}
-  disabled={aiGenerating}
-  className="text-xs font-bold text-eco-green flex items-center gap-1 hover:underline disabled:opacity-50"
->
-  {aiGenerating ? <Loader2 size={12} className="animate-spin"/> : <Sparkles size={12}/>}
-  {aiGenerating ? "Generating..." : "Generate with AI"} 
-</button>
-              </div>
-              <textarea 
-                rows="4" required
-                placeholder="Describe your item's condition..."
-                className="w-full px-5 py-4 rounded-2xl bg-eco-light border-none focus:ring-2 focus:ring-eco-green/20 outline-none font-medium resize-none"
-                value={form.description} onChange={(e) => setForm({...form, description: e.target.value})}
-              />
-            </div>
-          </div>
-
-          {/* Section 2: Location & Pricing */}
-          <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="flex flex-col gap-1.5">
-              <label className="font-bold text-sm flex items-center gap-1 ml-1 text-gray-600">
-                <MapPin size={14} className="text-eco-green"/> District
-              </label>
-              <select 
-                className="w-full px-5 py-4 rounded-2xl bg-eco-light border-none focus:ring-2 focus:ring-eco-green/20 outline-none font-medium"
-                value={form.location_name} 
-                onChange={(e) => handleLocationChange(e.target.value)}
+        {/* Right: AI Description & Media */}
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <label className="text-sm font-bold text-gray-700">Description</label>
+              <button
+                type="button"
+                onClick={handleGenerateAI}
+                disabled={loading}
+                className="text-[10px] font-black uppercase flex items-center gap-1 bg-yellow-400 px-3 py-1 rounded-full shadow-sm hover:scale-105 transition-transform"
               >
-                <option value="Colombo">Colombo</option>
-                <option value="Gampaha">Gampaha</option>
-                <option value="Kalutara">Kalutara</option>
-              </select>
+                <Sparkles size={12} /> {loading ? "Crafting..." : "Groq AI"}
+              </button>
             </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="font-bold text-sm flex items-center gap-1 ml-1 text-gray-600">
-                <Tag size={14} className="text-eco-green"/> Price Per Day (LKR)
-              </label>
-              <input 
-                type="number" step="0.01"
-                className="w-full px-5 py-4 rounded-2xl bg-eco-light border-none focus:ring-2 focus:ring-eco-green/20 outline-none font-medium"
-                value={form.price_per_day} 
-                onChange={(e) => setForm({...form, price_per_day: parseFloat(e.target.value) || 0})}
-              />
-            </div>
+            <textarea
+              rows="6"
+              value={formData.description}
+              className="w-full p-5 bg-gray-50 border-none rounded-[2rem] focus:ring-2 focus:ring-green-800 outline-none resize-none leading-relaxed"
+              placeholder="AI can help you describe this item..."
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            ></textarea>
           </div>
 
-          <button 
-            type="submit" disabled={loading}
-            className="w-full bg-eco-green text-white py-5 rounded-[2rem] font-black text-xl flex items-center justify-center gap-3 hover:shadow-2xl hover:shadow-eco-green/30 hover:-translate-y-1 transition-all disabled:opacity-70"
+          <div className="space-y-2">
+            <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+              <Upload size={16} className="text-green-800" /> Image URL
+            </label>
+            <input
+              type="text"
+              className="w-full p-4 bg-gray-50 border-none rounded-3xl focus:ring-2 focus:ring-green-800 outline-none"
+              placeholder="Paste link to image"
+              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+            />
+          </div>
+
+          <button
+            type="submit"
+            className="w-full bg-green-900 text-white py-5 rounded-full font-black text-lg hover:bg-black transition-all shadow-xl shadow-green-100"
           >
-            {loading ? "Saving to Database..." : "List Your Item Now"}
-            {!loading && <ArrowRight />}
+            Create Listing
           </button>
-        </form>
-      </div>
+        </div>
+      </form>
     </div>
   );
 }
