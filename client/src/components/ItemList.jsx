@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import API from '../api/axios';
 import ItemCard from './ItemCard';
 
-export default function ItemList({ category }) {
+export default function ItemList({ category = "All" }) {
   // FIX 1: Always initialize as an empty array []
   const [items, setItems] = useState([]); 
   const [loading, setLoading] = useState(true);

@@ -14,6 +14,8 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/ai', aiRoutes); // This creates the /api/ai/generate-description path
 app.use('/api/items', itemRoutes);
+// Serve the uploads folder statically
+app.use('/uploads', express.static('uploads'));
 
 // Test Route: Check if the server is healthy and connected to MySQL
 

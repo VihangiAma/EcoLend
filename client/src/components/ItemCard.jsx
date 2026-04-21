@@ -9,10 +9,10 @@ export default function ItemCard({ item }) {
         {/* Image Container */}
         <div className="relative h-56 w-full overflow-hidden">
           <img 
-            src={item.image_url || 'https://images.unsplash.com/photo-1581235720704-06d3acfcb36f?auto=format&fit=crop&q=80&w=600'} 
-            alt={item.title} 
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
+  src={item.image_url ? `http://localhost:5000${item.image_url}` : 'https://via.placeholder.com/600'} 
+  alt={item.title} 
+  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+/>
           {item.is_urgent && (
             <div className="absolute top-4 right-4 bg-yellow-400 text-black text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-tighter">
               Urgent

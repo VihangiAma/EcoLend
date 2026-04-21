@@ -1,98 +1,87 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../config/db');
+const db = require('../config/db'); 
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
-router.post('/add', async (req, res) => {
-  const { title, description, category, price_per_day, location_lat, location_lng, image_url } = req.body;
-
-  try {
-    // IMPORTANT: For now, we assume owner_id = 1 (your first user).
-    // Once login is ready, this will come from req.user.id
-    const owner_id = 1; 
-
-    const sql = `
-      INSERT INTO items 
-      (owner_id, title, description, category, price_per_day, location_lat, location_lng, image_url, is_available) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-
-    const [result] = await pool.execute(sql, [
-      owner_id,
-      title,
-      description,
-      category, // Must be one of: 'Tools', 'Electronics', 'Kitchen', 'Camping', 'Photography'
-      price_per_day || 0.00,
-      location_lat || null,
-      location_lng || null,
-      image_url || null,
-      true // is_available defaults to true
-    ]);
-
-    res.status(201).json({ message: "Item listed successfully", itemId: result.insertId });
-  } catch (error) {
-    console.error("MySQL Insert Error:", error.message);
-    res.status(500).json({ error: "Database failure", details: error.message });
+// 1. Configure Multer Storage
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const uploadPath = 'uploads/';
+    if (!fs.existsSync(uploadPath)) fs.mkdirSync(uploadPath);
+    cb(null, uploadPath);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
   }
 });
 
-// Get a single item by ID
-router.get('/:id', async (req, res) => {
+const upload = multer({ storage: storage });
+
+// --- ROUTES ---
+
+// FIX: Changed from '/' to '/all' and added category filtering
+router.get('/all', async (req, res) => {
+    const { category } = req.query; // Capture the ?category=Tools from frontend
+    
     try {
-        const [rows] = await db.execute(`
-            SELECT items.*, users.full_name as owner_name, users.profile_img_url as owner_avatar 
+        let sql = `
+            SELECT items.*, users.full_name as owner_name 
             FROM items 
-            JOIN users ON items.owner_id = users.user_id 
-            WHERE items.item_id = ?`, 
-            [req.params.id]
-        );
-        
-        if (rows.length === 0) return res.status(404).json({ message: "Item not found" });
-        res.json(rows[0]);
+            LEFT JOIN users ON items.owner_id = users.user_id
+        `;
+        const params = [];
+
+        // Add filter if a specific category is selected
+        if (category && category !== "All") {
+            sql += " WHERE items.category = ?";
+            params.push(category);
+        }
+
+        sql += " ORDER BY items.item_id DESC";
+
+        const [rows] = await db.execute(sql, params);
+        res.json(rows); // This returns the array your ItemList.jsx expects
     } catch (err) {
+        console.error("Fetch Error:", err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
-router.post('/add', async (req, res) => {
-    const { 
-        title, 
-        description, 
-        category, 
-        price_per_day, 
-        location_lat, 
-        location_lng, 
-        image_url 
-    } = req.body;
+// GET single item by ID
+router.get('/:id', async (req, res) => {
+  try {
+      const [rows] = await db.execute(`
+          SELECT items.*, users.full_name as owner_name, users.profile_img_url as owner_avatar 
+          FROM items 
+          JOIN users ON items.owner_id = users.user_id 
+          WHERE items.item_id = ?`, 
+          [req.params.id]
+      );
+      if (rows.length === 0) return res.status(404).json({ message: "Item not found" });
+      res.json(rows[0]);
+  } catch (err) {
+      res.status(500).json({ error: err.message });
+  }
+});
 
-    // Hardcoded for now until Auth is implemented
+// Add new item
+router.post('/add', upload.single('image'), async (req, res) => {
+    const { title, description, category, price_per_day, location_name, location_lat, location_lng } = req.body;
     const owner_id = 1; 
+    const image_url = req.file ? `/uploads/${req.file.filename}` : null;
 
     try {
         const sql = `
             INSERT INTO items 
-            (owner_id, title, description, category, price_per_day, location_lat, location_lng, image_url) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            (owner_id, title, description, category, price_per_day, location_name, location_lat, location_lng, image_url) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `;
-        
-        const [result] = await db.execute(sql, [
-            owner_id, 
-            title, 
-            description, 
-            category, 
-            price_per_day, 
-            location_lat || null, // Handle optional lat
-            location_lng || null, // Handle optional lng
-            image_url
-        ]);
-
-        res.status(201).json({ 
-            success: true, 
-            message: "Item listed successfully!", 
-            itemId: result.insertId 
-        });
+        await db.execute(sql, [owner_id, title, description, category, price_per_day, location_name || 'Unknown', location_lat || null, location_lng || null, image_url]);
+        res.status(201).json({ success: true, message: "Listing created successfully!" });
     } catch (err) {
-        console.error("Insert Error:", err.message);
-        res.status(500).json({ error: "Database error: " + err.message });
+        res.status(500).json({ error: "Failed to save item" });
     }
 });
 
