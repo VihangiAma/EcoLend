@@ -23,7 +23,7 @@ const upload = multer({ storage: storage });
 
 // FIX: Changed from '/' to '/all' and added category filtering
 router.get('/all', async (req, res) => {
-    const { category } = req.query; // Capture the ?category=Tools from frontend
+    const { category, search } = req.query; // Capture ?search=camera
     
     try {
         let sql = `
@@ -32,20 +32,35 @@ router.get('/all', async (req, res) => {
             LEFT JOIN users ON items.owner_id = users.user_id
         `;
         const params = [];
+        let conditions = [];
 
-        // Add filter if a specific category is selected
+        // Category Filter
         if (category && category !== "All") {
-            sql += " WHERE items.category = ?";
+            conditions.push("items.category = ?");
             params.push(category);
+        }
+
+        // Search Filter (Title or Description)
+        
+
+if (search) {
+    // Adding % before and after the query allows "cam" to match "camera"
+    const searchTerm = `%${search}%`; 
+    conditions.push("(items.title LIKE ? OR items.description LIKE ?)");
+    params.push(searchTerm, searchTerm);
+}
+        // Combine conditions if they exist
+        if (conditions.length > 0) {
+            sql += " WHERE " + conditions.join(" AND ");
         }
 
         sql += " ORDER BY items.item_id DESC";
 
         const [rows] = await db.execute(sql, params);
-        res.json(rows); // This returns the array your ItemList.jsx expects
+        res.json(rows);
     } catch (err) {
-        console.error("Fetch Error:", err.message);
-        res.status(500).json({ error: err.message });
+        console.error("Search Error:", err.message);
+        res.status(500).json({ error: "Failed to search items" });
     }
 });
 

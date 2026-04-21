@@ -8,6 +8,8 @@ export default function LendItem() {
   const [loading, setLoading] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [isOther, setIsOther] = useState(false);
+const [otherCategory, setOtherCategory] = useState("");
   
   const [formData, setFormData] = useState({
     title: "",
@@ -17,6 +19,26 @@ export default function LendItem() {
     description: "",
     image_file: null
   });
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Please login first to list an item!");
+      navigate("/login");
+    }
+  }, [navigate]);
+
+  const categories = ["Tools", "Electronics", "Kitchen", "Camping", "Photography", "Sports", "Outdoor", "Garden", "Home", "Other"];
+  const handleCategoryChange = (e) => {
+  const value = e.target.value;
+  if (value === "Other") {
+    setIsOther(true);
+    setFormData({ ...formData, category: "" }); // Reset to let user type
+  } else {
+    setIsOther(false);
+    setFormData({ ...formData, category: value });
+  }
+};
 
   // 1. Groq AI Generation (Keep this!)
   const handleGenerateAI = async () => {
@@ -127,14 +149,28 @@ export default function LendItem() {
             />
           </div>
 
-          <select 
-            className="w-full p-5 bg-gray-50 rounded-3xl outline-none appearance-none font-bold text-gray-600"
-            onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-          >
-            {['Tools', 'Electronics', 'Kitchen', 'Camping', 'Photography'].map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+         <label className="text-sm font-black text-gray-700 ml-2">CATEGORY</label>
+  <select 
+    className="w-full p-5 bg-gray-50 rounded-3xl outline-none appearance-none font-bold text-gray-600 border-2 border-transparent focus:border-green-800"
+    onChange={handleCategoryChange}
+  >
+    <option value="">Select a Category</option>
+    {categories.map(cat => (
+      <option key={cat} value={cat}>{cat}</option>
+    ))}
+  </select>
+  {isOther && (
+    <div className="animate-in fade-in slide-in-from-top-2 duration-300">
+      <input
+        type="text"
+        placeholder="Enter your custom category (e.g., Musical Instruments)"
+        className="w-full p-4 bg-green-50 rounded-2xl outline-none border-2 border-green-200 focus:border-green-800 font-medium text-sm"
+        onChange={(e) => setFormData({ ...formData, category: e.target.value })}
+        required
+      />
+      <p className="text-[10px] text-green-700 mt-2 ml-2 font-bold uppercase tracking-widest">Custom Category Active</p>
+    </div>
+  )}
         </div>
 
         {/* Right Column */}
