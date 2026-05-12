@@ -9,6 +9,16 @@ import Register from "./pages/Register";
 import ItemDetail from "./pages/ItemDetail";
 
 
+// Utility: check if user is logged in
+const isAuthenticated = () => {
+  return localStorage.getItem('token') !== null;
+};
+
+// Protected Route wrapper
+function PrivateRoute({ children }) {
+  return isAuthenticated() ? children : <Navigate to="/login" />;
+}
+
 function App() {
   const location = useLocation();
   
