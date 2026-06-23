@@ -1,4 +1,4 @@
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { SearchProvider } from "./contexts/SearchContext";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
@@ -7,6 +7,9 @@ import LendItem from "./pages/LendItem";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ItemDetail from "./pages/ItemDetail";
+import Profile from "./pages/Profile";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";  
 
 
 // Utility: check if user is logged in
@@ -39,7 +42,10 @@ function App() {
               <Route path="/lend" element={<LendItem />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
               <Route path="/items/:id" element={<ItemDetail />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password/:token" element={<ResetPassword />} />
               {/* Add other routes here */}
             </Routes>
           </main>

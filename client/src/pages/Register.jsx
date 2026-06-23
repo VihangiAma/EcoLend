@@ -8,13 +8,18 @@ export default function Register() {
     full_name: '',
     email: '',
     password: '',
+    confirm_password: '',
     phone: ''
   });
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
-  const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = e => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+    setError('');
+  };
 
   const handleImageUpload = e => {
     const selectedFile = e.target.files[0];
@@ -26,22 +31,33 @@ export default function Register() {
 
   const handleSubmit = async e => {
     e.preventDefault();
+
+    if (!form.full_name || !form.email || !form.password || !form.confirm_password || !form.phone || !file) {
+      setError('All fields are required.');
+      return;
+    }
+
+    if (form.password !== form.confirm_password) {
+      setError('Passwords do not match.');
+      return;
+    }
+
     try {
       const formData = new FormData();
       formData.append('full_name', form.full_name);
       formData.append('email', form.email);
       formData.append('password', form.password);
       formData.append('phone', form.phone);
-      if (file) formData.append('profile_img', file);
+      formData.append('profile_img', file);
 
-      await axios.post('http://localhost:5000/api/auth/register', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
+      await axios.post('http://localhost:5000/api/auth/register', formData);
+      setError('');
 
       alert('Registration successful!');
       navigate('/login');
     } catch (err) {
-      alert('Error: ' + (err.response?.data?.error || err.message));
+      console.error('Register error', err.response?.data || err.message);
+      setError(err.response?.data?.error || 'Registration failed. Please try again.');
     }
   };
 
@@ -104,6 +120,12 @@ export default function Register() {
               <p className="text-white/60 text-center lg:text-left">Register to start your sustainable journey</p>
             </div>
 
+            {error && (
+              <div className="rounded-2xl bg-[#ff4d4f]/10 border border-[#ff4d4f]/20 text-[#ff4d4f] px-4 py-3 text-sm mb-4">
+                {error}
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-4">
               
               {/* --- MODERN IMAGE UPLOAD --- */}
@@ -121,6 +143,7 @@ export default function Register() {
                     accept="image/*"
                     onChange={handleImageUpload}
                     className="hidden"
+                    required
                   />
                   <div className="absolute -bottom-1 -right-1 bg-[#2D5A27] p-1.5 rounded-full border border-white/20 text-white shadow-lg">
                     <UploadCloud size={14} />
@@ -176,6 +199,22 @@ export default function Register() {
                 </div>
               </div>
 
+              {/* Confirm Password */}
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-white/50 uppercase ml-1">Confirm Password</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30" size={18} />
+                  <input
+                    name="confirm_password"
+                    type="password"
+                    placeholder="••••••••"
+                    onChange={handleChange}
+                    className="w-full pl-12 pr-5 py-3.5 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-[#2D5A27] outline-none transition-all text-sm text-white placeholder-white/20"
+                    required
+                  />
+                </div>
+              </div>
+
               {/* Phone */}
               <div className="space-y-1">
                 <label className="block text-xs font-bold text-white/50 uppercase ml-1">Phone Number</label>
@@ -186,6 +225,7 @@ export default function Register() {
                     placeholder="+94 77 123 4567"
                     onChange={handleChange}
                     className="w-full pl-12 pr-5 py-3.5 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-[#2D5A27] outline-none transition-all text-sm text-white placeholder-white/20"
+                    required
                   />
                 </div>
               </div>

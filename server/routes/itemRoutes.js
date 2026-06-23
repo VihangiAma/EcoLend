@@ -4,6 +4,7 @@ const db = require('../config/db');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const verifyToken = require('../middleware/auth');
 
 // 1. Configure Multer Storage
 const storage = multer.diskStorage({
@@ -62,6 +63,17 @@ if (search) {
         console.error("Search Error:", err.message);
         res.status(500).json({ error: "Failed to search items" });
     }
+});
+
+// GET authenticated user's items
+router.get('/my', verifyToken, async (req, res) => {
+  try {
+    const [rows] = await db.execute('SELECT * FROM items WHERE owner_id = ? ORDER BY item_id DESC', [req.userId]);
+    res.json(rows);
+  } catch (err) {
+    console.error('Fetch user items error:', err.message);
+    res.status(500).json({ error: 'Failed to fetch user items' });
+  }
 });
 
 // GET single item by ID

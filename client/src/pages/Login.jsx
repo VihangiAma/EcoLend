@@ -14,10 +14,9 @@ export default function Login() {
     try {
       const res = await axios.post('http://localhost:5000/api/auth/login', form);
       localStorage.setItem('token', res.data.token);
-      // Storing user data so the Header can access the name/initials
       localStorage.setItem('user', JSON.stringify(res.data.user)); 
       navigate('/home');
-      window.location.reload(); // Refresh to update Header state
+      window.location.reload();
     } catch (err) {
       alert('Login failed: ' + (err.response?.data?.error || 'Server error'));
     }
@@ -114,6 +113,16 @@ export default function Login() {
                     className="w-full pl-12 pr-5 py-4 bg-white/5 border border-white/10 rounded-2xl focus:ring-2 focus:ring-[#2D5A27] outline-none transition-all text-white placeholder-white/20"
                     required
                   />
+                </div>
+                
+                {/* --- ADDED FORGOT PASSWORD LINK --- */}
+                <div className="flex justify-end pr-1">
+                  <Link 
+                    to="/forgot-password" 
+                    className="text-xs font-semibold text-[#F9C80E] hover:text-white transition-colors"
+                  >
+                    Forgot Password?
+                  </Link>
                 </div>
               </div>
 

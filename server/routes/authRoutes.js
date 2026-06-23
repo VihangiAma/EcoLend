@@ -3,14 +3,24 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const router = express.Router();
 const db = require('../config/db');
-
-// Register
+const nodemailer = require('nodemailer');
+const crypto = require('crypto'); // Built-in, no install needed
 const upload = require('../config/multer');
+const verifyToken = require('../middleware/auth');
 
+// --- EMAIL CONFIGURATION ---
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: 'your-email@gmail.com', // Replace with your Gmail
+    pass: 'your-app-password'     // Replace with your 16-character App Password
+  }
+});
+
+// 1. REGISTER
 router.post('/register', upload.single('profile_img'), async (req, res) => {
   const { full_name, email, password, phone } = req.body;
   const profile_img_url = req.file ? `/uploads/${req.file.filename}` : null;
-
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const [result] = await db.query(
@@ -23,9 +33,7 @@ router.post('/register', upload.single('profile_img'), async (req, res) => {
   }
 });
 
-
-
-// Login
+// 2. LOGIN
 router.post('/login', async (req, res) => {
   const { email, password } = req.body;
   try {
@@ -37,9 +45,115 @@ router.post('/login', async (req, res) => {
     if (!isMatch) return res.status(401).json({ error: 'Invalid email or password' });
 
     const token = jwt.sign({ userId: user.user_id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-    res.json({ message: 'Login successful', token, user: { id: user.user_id, name: user.full_name } });
+    res.json({
+      message: 'Login successful',
+      token,
+      user: {
+        id: user.user_id,
+        name: user.full_name,
+        fullName: user.full_name,
+        email: user.email,
+        phone: user.phone,
+        profile_img_url: user.profile_img_url || null
+      }
+    });
   } catch (err) {
     res.status(500).json({ error: 'Login failed', details: err.message });
+  }
+});
+
+// 3. PROFILE GET
+router.get('/me', verifyToken, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT user_id AS id, full_name AS fullName, email, phone, profile_img_url FROM users WHERE user_id = ?',
+      [req.userId]
+    );
+    if (rows.length === 0) return res.status(404).json({ error: 'User not found' });
+    res.json({ user: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch profile', details: err.message });
+  }
+});
+
+// 4. PROFILE UPDATE
+router.put('/me', verifyToken, async (req, res) => {
+  const { full_name, email, phone } = req.body;
+  try {
+    const [existing] = await db.query('SELECT user_id FROM users WHERE email = ? AND user_id != ?', [email, req.userId]);
+    if (existing.length > 0) return res.status(400).json({ error: 'Email is already in use' });
+
+    await db.query(
+      'UPDATE users SET full_name = ?, email = ?, phone = ? WHERE user_id = ?',
+      [full_name, email, phone, req.userId]
+    );
+
+    const [rows] = await db.query(
+      'SELECT user_id AS id, full_name AS fullName, email, phone, profile_img_url FROM users WHERE user_id = ?',
+      [req.userId]
+    );
+    res.json({ user: rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update profile', details: err.message });
+  }
+});
+
+// 5. FORGOT PASSWORD (THIS WAS MISSING)
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  try {
+    const [users] = await db.query("SELECT * FROM users WHERE email = ?", [email]);
+    if (users.length === 0) return res.status(404).json({ message: "User not found" });
+
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+    // Use user_id as that is your primary key name in the table
+    await db.query(
+      "UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE email = ?",
+      [token, expiry, email]
+    );
+
+    const resetLink = `http://localhost:3000/reset-password/${token}`;
+    
+    await transporter.sendMail({
+      from: '"EcoLend Support" <your-email@gmail.com>',
+      to: email,
+      subject: 'Password Reset Request',
+      html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link expires in 1 hour.</p>`
+    });
+
+    res.json({ message: "Reset link sent!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+// 4. RESET PASSWORD
+router.post('/reset-password/:token', async (req, res) => {
+  const { token } = req.params;
+  const { password } = req.body;
+  try {
+    const [users] = await db.query(
+      "SELECT * FROM users WHERE reset_token = ? AND reset_token_expiry > NOW()",
+      [token]
+    );
+
+    if (users.length === 0) return res.status(400).json({ message: "Invalid or expired token" });
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Ensure we use user_id to match your table schema
+    await db.query(
+      "UPDATE users SET password_hash = ?, reset_token = NULL, reset_token_expiry = NULL WHERE user_id = ?",
+      [hashedPassword, users[0].user_id]
+    );
+
+    res.json({ message: "Password updated successfully!" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Error resetting password" });
   }
 });
 

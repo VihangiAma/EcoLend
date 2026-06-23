@@ -34,6 +34,12 @@ export default function Header() {
     return user?.name || user?.full_name || "User";
   };
 
+  const getProfileImage = () => {
+    const image = user?.profile_img_url || user?.profile_img;
+    if (!image) return null;
+    return image.startsWith('http') ? image : `http://localhost:5000${image}`;
+  };
+
   return (
     <header className="h-20 bg-white border-b border-gray-50 flex items-center justify-between px-8 sticky top-0 z-10">
       {/* Search Bar */}
@@ -62,9 +68,17 @@ export default function Header() {
         {user ? (
           <div className="flex items-center gap-3">
             <Link to="/profile" className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-xl transition-all">
-              <div className="w-9 h-9 bg-green-100 text-green-900 rounded-full flex items-center justify-center font-black border-2 border-green-200">
-                {getInitial()}
-              </div>
+              {getProfileImage() ? (
+                <img
+                  src={getProfileImage()}
+                  alt={getDisplayName()}
+                  className="w-9 h-9 rounded-full border-2 border-green-200 object-cover"
+                />
+              ) : (
+                <div className="w-9 h-9 bg-green-100 text-green-900 rounded-full flex items-center justify-center font-black border-2 border-green-200">
+                  {getInitial()}
+                </div>
+              )}
               <span className="hidden md:block font-bold text-sm text-gray-700">
                 {getDisplayName()}
               </span>
