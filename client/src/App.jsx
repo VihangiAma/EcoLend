@@ -10,6 +10,8 @@ import ItemDetail from "./pages/ItemDetail";
 import Profile from "./pages/Profile";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";  
+import Browse from "./pages/Browse";
+import Messages from "./pages/Messages";
 
 
 // Utility: check if user is logged in
@@ -46,7 +48,9 @@ function App() {
               <Route path="/items/:id" element={<ItemDetail />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password/:token" element={<ResetPassword />} />
-              {/* Add other routes here */}
+              <Route path="/browse" element={<Browse />}  />
+              <Route path="/messages" element={<Messages />} />
+               
             </Routes>
           </main>
         </div>

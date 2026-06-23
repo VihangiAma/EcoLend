@@ -22,9 +22,9 @@ const upload = multer({ storage: storage });
 
 // --- ROUTES ---
 
-// FIX: Changed from '/' to '/all' and added category filtering
+// ADVANCED BROWSE & SEARCH FILTERING
 router.get('/all', async (req, res) => {
-    const { category, search } = req.query; // Capture ?search=camera
+    const { category, search, maxPrice, sortBy } = req.query; 
     
     try {
         let sql = `
@@ -35,32 +35,45 @@ router.get('/all', async (req, res) => {
         const params = [];
         let conditions = [];
 
-        // Category Filter
+        // 1. Category Filter
         if (category && category !== "All") {
             conditions.push("items.category = ?");
             params.push(category);
         }
 
-        // Search Filter (Title or Description)
-        
+        // 2. Search Filter (Title or Description)
+        if (search && search.trim() !== "") {
+            const searchTerm = `%${search}%`; 
+            conditions.push("(items.title LIKE ? OR items.description LIKE ?)");
+            params.push(searchTerm, searchTerm);
+        }
 
-if (search) {
-    // Adding % before and after the query allows "cam" to match "camera"
-    const searchTerm = `%${search}%`; 
-    conditions.push("(items.title LIKE ? OR items.description LIKE ?)");
-    params.push(searchTerm, searchTerm);
-}
-        // Combine conditions if they exist
+        // 3. Max Price Filter
+        if (maxPrice) {
+            conditions.push("items.price_per_day <= ?");
+            params.push(Number(maxPrice));
+        }
+
+        // Combine all active conditions
         if (conditions.length > 0) {
             sql += " WHERE " + conditions.join(" AND ");
         }
 
-        sql += " ORDER BY items.item_id DESC";
+        // 4. Dynamic Sorting Configurations
+        if (sortBy === 'price_low') {
+            sql += " ORDER BY items.price_per_day ASC";
+        } else if (sortBy === 'price_high') {
+            sql += " ORDER BY items.price_per_day DESC";
+        } else if (sortBy === 'rating') {
+            sql += " ORDER BY items.rating DESC"; // Assumes a rating column exists
+        } else {
+            sql += " ORDER BY items.item_id DESC"; // Default: Newest listings first
+        }
 
         const [rows] = await db.execute(sql, params);
         res.json(rows);
     } catch (err) {
-        console.error("Search Error:", err.message);
+        console.error("Advanced Search Error:", err.message);
         res.status(500).json({ error: "Failed to search items" });
     }
 });
