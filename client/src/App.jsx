@@ -12,6 +12,8 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";  
 import Browse from "./pages/Browse";
 import Messages from "./pages/Messages";
+import Settings from "./pages/Settings";
+import { LanguageProvider } from "./contexts/LanguageContext";
 
 
 // Utility: check if user is logged in
@@ -31,6 +33,7 @@ function App() {
   const isAuthPage = location.pathname === "/login" || location.pathname === "/register";
 
   return (
+    <LanguageProvider>
     <SearchProvider>
       <div className="flex min-h-screen bg-gray-50">
         {!isAuthPage && <Sidebar />}
@@ -45,17 +48,19 @@ function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
-              <Route path="/items/:id" element={<ItemDetail />} />
+              <Route path="/item/:id" element={<ItemDetail />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/reset-password/:token" element={<ResetPassword />} />
               <Route path="/browse" element={<Browse />}  />
               <Route path="/messages" element={<Messages />} />
+              <Route path="/settings" element={<Settings />} />
                
             </Routes>
           </main>
         </div>
       </div>
     </SearchProvider>
+    </LanguageProvider>
   );
 }
 

@@ -1,86 +1,177 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, Calendar, ShieldCheck, ArrowLeft, Star } from 'lucide-react';
+import { MapPin, ShieldCheck, ArrowLeft, Star, Calendar, MessageSquare, Info } from 'lucide-react';
 import API from '../api/axios';
+import { useLanguage } from '../contexts/LanguageContext'; // ✅ Step 1: Import bilingual custom context hook
 
 export default function ItemDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { t } = useLanguage(); // ✅ Step 2: Extract your global translation engine
   const [item, setItem] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchItem = async () => {
       try {
         const res = await API.get(`/items/${id}`);
         setItem(res.data);
-      } catch (err) { console.error(err); }
+      } catch (err) { 
+        console.error("Error fetching item details:", err); 
+      } finally {
+        setLoading(false);
+      }
     };
     fetchItem();
   }, [id]);
+  const startNegotiationChat = () => {
+  const currentUserId = JSON.parse(localStorage.getItem("user"))?.id;
+  // Unique composite room structure channel tracking route
+  const roomId = `${currentUserId}_${item.owner_id}`;
+  navigate(`/messages/${roomId}`);
+};
 
-  if (!item) return <div className="p-10 text-gray-400">Loading item details...</div>;
+// Bind this method handler to your chat action button inside ItemDetail.jsx:
+// <button onClick={startNegotiationChat} className="..."> Chat </button>
+
+  // ✅ Localized Loading View Container Screen
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f4f6f8] flex items-center justify-center p-10">
+        <div className="text-center space-y-3">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#005A36] border-t-transparent mx-auto" />
+          <p className="text-sm font-bold text-gray-500 uppercase tracking-widest">
+            {t('loadingAsset') || "Loading asset specifications..."}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  //Logic to handle if the item is not found or has been deleted
+  if (!item) {
+    return (
+      <div className="min-h-screen bg-[#f4f6f8] flex items-center justify-center p-10">
+        <div className="bg-white p-8 rounded-3xl border border-gray-200 text-center max-w-sm shadow-sm space-y-4">
+          <Info size={40} className="text-amber-600 mx-auto" />
+          <h2 className="text-xl font-black text-gray-900">{t('assetNotFound') || "Asset Not Found"}</h2>
+          <p className="text-xs text-gray-500 font-medium">
+            {t('assetNotFoundDesc') || "This item listing may have been unlisted, rented out, or deleted from the EcoLend ecosystem database pool."}
+          </p>
+          <button 
+            onClick={() => navigate('/')} 
+            className="w-full bg-[#005A36] text-white py-3 rounded-xl text-xs font-bold hover:bg-black transition-all"
+          >
+            {t('backToBrowse')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Back Button */}
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-500 hover:text-green-800 transition-colors">
-        <ArrowLeft size={20} /> <span className="font-medium">Back to Browse</span>
-      </button>
-
-      <div className="flex flex-col lg:flex-row gap-12">
-        {/* Left: Product Image */}
-        <div className="flex-1">
-          <div className="sticky top-28">
-            <img src={item.image_url || 'https://via.placeholder.com/600'} 
-                 alt={item.title}
-                 className="w-full h-[550px] object-cover rounded-[2rem] shadow-xl border border-gray-100" />
-          </div>
-        </div>
-
-        {/* Right: Details */}
-        <div className="flex-1 space-y-8">
-          <div className="space-y-4">
-            <span className="bg-green-100 text-green-800 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
-              {item.category}
-            </span>
-            <h1 className="text-5xl font-black text-gray-900 leading-tight">{item.title}</h1>
-            
-            <div className="flex items-center gap-6 text-gray-500 text-sm">
-              <div className="flex items-center gap-1.5"><MapPin size={18} className="text-green-700"/> <span>Western Province, LK</span></div>
-              <div className="flex items-center gap-1.5"><Star size={18} className="text-yellow-400 fill-yellow-400"/> <span>4.9 (12 Reviews)</span></div>
-            </div>
-          </div>
-
-          {/* AI Description Box */}
-          <div className="p-8 bg-gray-50 rounded-[2rem] border border-gray-100 relative">
-            <div className="absolute -top-3 left-8 bg-green-900 text-white text-[10px] px-3 py-1 rounded-full font-bold uppercase">
-              AI Insight
-            </div>
-            <p className="text-gray-600 leading-relaxed text-lg italic">
-              "{item.description}"
-            </p>
-          </div>
-
-          {/* Pricing & Owner Card */}
-          <div className="p-6 border border-gray-200 rounded-[2rem] flex items-center justify-between">
-             <div className="flex items-center gap-4">
-                <img src={item.owner_avatar || "https://ui-avatars.com/api/?name=" + item.owner_name} 
-                     className="w-14 h-14 rounded-full border-2 border-white shadow-md" />
-                <div>
-                  <p className="font-bold text-gray-900 text-lg">{item.owner_name}</p>
-                  <p className="text-xs text-gray-400 flex items-center gap-1"><ShieldCheck size={12}/> Verified Lender</p>
-                </div>
-             </div>
-             <div className="text-right">
-                <p className="text-3xl font-black text-green-900">Rs. {item.price_per_day}</p>
-                <p className="text-xs text-gray-400 font-bold uppercase">Per Day</p>
-             </div>
-          </div>
-
-          {/* CTA Button */}
-          <button className="w-full bg-green-900 text-white py-5 rounded-full font-black text-xl hover:bg-black transition-all shadow-2xl shadow-green-200 active:scale-95">
-            Request to Borrow
+    <div className="min-h-screen bg-[#f4f6f8] text-gray-900 pb-16">
+      {/* Top Breadcrumb Header Context */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-40 shadow-xs">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="group flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-gray-500 hover:text-[#005A36] transition-colors"
+          >
+            <ArrowLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" /> 
+            {t('backToBrowse')}
           </button>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+          
+          {/* Left Column Canvas: Product Media Display Showcase */}
+          <div className="lg:col-span-5">
+            <div className="sticky top-24 rounded-3xl overflow-hidden border border-gray-200 bg-white shadow-sm group">
+              <img 
+  src={item.image_url || "https://images.unsplash.com/photo-1581092160607-ee22621dd758?q=80&w=600&auto=format&fit=crop"} 
+  className="w-full h-64 object-cover rounded-2xl"
+  alt={item.title || "Rental Item"} 
+/>
+            </div>
+          </div>
+
+          {/* Right Column Specification Feed: Details & Logistics Matrix */}
+          <div className="lg:col-span-7 space-y-6">
+            
+            {/* Meta Headers */}
+            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-gray-200 shadow-sm space-y-4">
+              <span className="inline-block bg-emerald-100/70 border border-emerald-200 text-[#005A36] px-4 py-1 rounded-md text-[10px] font-black uppercase tracking-widest">
+                {item.category || t('unclassifiedAsset')}
+              </span>
+              
+              <h1 className="text-3xl sm:text-4xl font-black text-gray-950 tracking-tight leading-tight">
+                {item.title}
+              </h1>
+              
+              <div className="flex flex-wrap items-center gap-6 pt-2 border-t border-gray-100 text-gray-500 text-xs font-semibold">
+                <div className="flex items-center gap-1.5 text-gray-800">
+                  <MapPin size={16} className="text-[#005A36]" /> 
+                  <span>{item.location_name || "Western Province, LK"}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <Star size={16} className="text-amber-400 fill-amber-400" /> 
+                  <span className="text-gray-800">4.9</span>
+                  <span className="text-gray-400">(12 {t('reviews') || "Platform Reviews"})</span>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Prompt Generated Specification Box */}
+            <div className="p-6 sm:p-8 bg-gradient-to-br from-gray-50 to-white rounded-3xl border border-gray-200 shadow-sm relative overflow-hidden">
+              <div className="absolute top-0 right-0 bg-yellow-400 text-black text-[9px] font-black tracking-widest uppercase px-3 py-1 rounded-bl-xl border-l border-b border-gray-200/40">
+                {t('aiInsightSystem') || "AI Insight System"}
+              </div>
+              <h3 className="text-xs font-black uppercase tracking-wider text-gray-400 mb-3">{t('assetDesc') || "Asset Description"}</h3>
+              <p className="text-gray-700 leading-relaxed text-sm font-medium italic">
+                "{item.description || t('noDescription')}"
+              </p>
+            </div>
+
+            {/* Pricing, Verification Status Matrix, & Account Parameters Mapping Card */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <img 
+                  src={item.owner_avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.owner_name || 'Lender')}&background=005A36&color=fff`} 
+                  alt={item.owner_name || "Lender Profile Image"}
+                  className="w-14 h-14 rounded-xl border-2 border-gray-100 shadow-xs object-cover" 
+                />
+                <div>
+                  <p className="font-black text-gray-950 text-base">{item.owner_name || t('verifiedMember')}</p>
+                  <p className="text-[11px] text-[#005A36] font-bold flex items-center gap-1 mt-0.5">
+                    <ShieldCheck size={14} /> {t('verifiedLender')}[cite: 1]
+                  </p>
+                </div>
+              </div>
+              
+              <div className="sm:text-right w-full sm:w-auto pt-4 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                <span className="text-[10px] block font-black text-gray-400 uppercase tracking-wider">{t('rentalValue') || "Rental Value"}</span>
+                <span className="text-2xl font-black text-[#005A36]">
+                  Rs. {item.price_per_day ? Number(item.price_per_day).toLocaleString() : "0"}
+                </span>
+                <span className="text-[10px] text-gray-500 font-extrabold uppercase tracking-wider block">{t('perDayRate') || "/ Per Day Rate"}</span>
+              </div>
+            </div>
+
+            {/* Platform Operational Flow Actions Container */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <button className="sm:col-span-3 w-full bg-[#005A36] hover:bg-[#004227] text-white py-4 px-6 rounded-xl font-extrabold text-sm tracking-wide transition-all active:scale-[0.99] shadow-md shadow-emerald-900/10 flex items-center justify-center gap-2">
+                <Calendar size={16} /> {t('requestBorrow')}[cite: 1]
+              </button>
+              <button className="sm:col-span-1 w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-4 px-4 rounded-xl font-extrabold text-sm transition-all active:scale-[0.99] flex items-center justify-center gap-2">
+                <MessageSquare size={16} className="text-gray-400" /> {t('chatBtn')}[cite: 1]
+              </button>
+            </div>
+
+          </div>
+
         </div>
       </div>
     </div>

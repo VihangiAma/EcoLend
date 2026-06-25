@@ -156,5 +156,94 @@ router.post('/reset-password/:token', async (req, res) => {
     res.status(500).json({ message: "Error resetting password" });
   }
 });
+// ==========================================
+//          ACCOUNT SETTINGS CORES
+// ==========================================
+
+// 1. UPDATE ECOSYSTEM PREFERENCES & LOGISTICS
+router.put('/settings', verifyToken, async (req, res) => {
+  const { is_away, preferred_handoff, ai_matching } = req.body;
+  
+  try {
+    const sql = `
+      UPDATE users 
+      SET is_away = ?, preferred_handoff = ?, ai_matching = ? 
+      WHERE user_id = ?
+    `;
+    
+    // Normalize parameters for tinyint/boolean entry matching your schema
+    await db.query(sql, [
+      is_away ? 1 : 0, 
+      preferred_handoff || 'Meetup', 
+      ai_matching ? 1 : 0, 
+      req.userId
+    ]);
+
+    res.json({ success: true, message: "Ecosystem configurations updated successfully!" });
+  } catch (err) {
+    console.error("Settings preferences update failure:", err.message);
+    res.status(500).json({ error: "Failed to update portal settings preference states." });
+  }
+});
+
+// 2. PASSWORD SECURITY CHANGE INTERFACE
+router.put('/settings/change-password', verifyToken, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: "Both current and new passwords are required." });
+  }
+
+  try {
+    // Fetch the correct password_hash column parameter
+    const [users] = await db.query('SELECT password_hash FROM users WHERE user_id = ?', [req.userId]);
+    if (users.length === 0) return res.status(404).json({ error: "User session context not found." });
+
+    const user = users[0];
+
+    // FIX: Swapped over to bcryptjs to track your primary dependency configuration
+    const isMatch = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!isMatch) return res.status(401).json({ error: "The current password you typed is incorrect." });
+
+    // Encrypt the fresh credential payload matching your setup factor (10 rounds)
+    const newHashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Persist changes down to your database
+    await db.query('UPDATE users SET password_hash = ? WHERE user_id = ?', [newHashedPassword, req.userId]);
+
+    res.json({ success: true, message: "Your account security password has been updated successfully!" });
+  } catch (err) {
+    console.error("Credential modification track failure:", err.message);
+    res.status(500).json({ error: "Internal server error updating credentials." });
+  }
+});
+
+// 3. IDENTITY DOCUMENT UPLOAD (NIC / TRUST BADGE PROGRESS)
+router.post('/settings/verify-identity', verifyToken, upload.single('identity_doc'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: "Please select an identity verification document file to upload." });
+  }
+
+  // Uses your global multer config to resolve asset paths
+  const identity_doc_url = `/uploads/${req.file.filename}`;
+
+  try {
+    const sql = `
+      UPDATE users 
+      SET identity_doc_url = ?, verification_status = 'Pending Review' 
+      WHERE user_id = ?
+    `;
+    await db.query(sql, [identity_doc_url, req.userId]);
+
+    res.json({ 
+      success: true, 
+      message: "Identity documentation submitted successfully. Verification status is now Pending Review.",
+      docUrl: identity_doc_url
+    });
+  } catch (err) {
+    console.error("Trust layer documentation upload failure:", err.message);
+    res.status(500).json({ error: "Failed to upload identity verification file parameters matrix." });
+  }
+});
 
 module.exports = router;

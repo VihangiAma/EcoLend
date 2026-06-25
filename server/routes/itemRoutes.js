@@ -107,9 +107,12 @@ router.get('/:id', async (req, res) => {
 });
 
 // Add new item
-router.post('/add', upload.single('image'), async (req, res) => {
+// ✅ Added verifyToken middleware to dynamically read the logged-in user
+router.post('/add', verifyToken, upload.single('image'), async (req, res) => {
     const { title, description, category, price_per_day, location_name, location_lat, location_lng } = req.body;
-    const owner_id = 1; 
+    
+    // ✅ FIX: Extract the dynamic logged-in user's ID from the token request state
+    const owner_id = req.userId; 
     const image_url = req.file ? `/uploads/${req.file.filename}` : null;
 
     try {
@@ -121,6 +124,7 @@ router.post('/add', upload.single('image'), async (req, res) => {
         await db.execute(sql, [owner_id, title, description, category, price_per_day, location_name || 'Unknown', location_lat || null, location_lng || null, image_url]);
         res.status(201).json({ success: true, message: "Listing created successfully!" });
     } catch (err) {
+        console.error("Listing submission error:", err.message);
         res.status(500).json({ error: "Failed to save item" });
     }
 });

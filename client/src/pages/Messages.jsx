@@ -1,8 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { Send, Search, CheckCheck, MessageSquare, ArrowLeft } from 'lucide-react';
+import { io } from 'socket.io-client';
 import API from '../api/axios';
+import { useLanguage } from '../contexts/LanguageContext';
+
+// Connect socket connection to backend application framework port
+const socket = io("http://localhost:5000", { autoConnect: false });
 
 export default function Messages() {
+  const { t } = useLanguage();
   const [conversations, setConversations] = useState([]);
   const [activeChannel, setActiveChannel] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -12,34 +18,53 @@ export default function Messages() {
   const [searchQuery, setSearchQuery] = useState('');
   const chatBottomRef = useRef(null);
 
-  // Fallback data structure for immediate evaluation before database populations
-  const mockConversations = [
-    { conversation_id: 1, peer_name: 'Sumudu Silva', last_message: 'Is the professional camera available for rental tomorrow morning?', last_message_time: '10:42 AM', peer_avatar: null },
-    { conversation_id: 2, peer_name: 'Vihangi Ama', last_message: 'Perfect, I will drop off the camping tent at the Colombo pickup spot.', last_message_time: 'Yesterday', peer_avatar: null },
-  ];
+  // Safe parsing of authenticated active context tracking parameters
+  const userSessionData = localStorage.getItem("user");
+  const currentUser = userSessionData ? JSON.parse(userSessionData) : null;
 
-  const mockChatLog = {
-    1: [
-      { message_id: 101, sender_id: 99, message_text: "Hi there! I saw your Hot Plate listing.", created_at: "10:30 AM" },
-      { message_id: 102, sender_id: 1, message_text: "Hello! Yes, it is fully deep-cleaned and functional.", created_at: "10:35 AM" },
-      { message_id: 103, sender_id: 99, message_text: "Awesome. Is the professional camera available for rental tomorrow morning?", created_at: "10:42 AM" }
-    ],
-    2: [
-      { message_id: 201, sender_id: 1, message_text: "Can we handle the handoff near the faculty tech building?", created_at: "Yesterday" },
-      { message_id: 202, sender_id: 99, message_text: "Perfect, I will drop off the camping tent at the Colombo pickup spot.", created_at: "Yesterday" }
-    ]
-  };
+  // Phase A: Handle Socket connection and active message listeners
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    socket.connect();
 
-  // Fetch all chat groups
+    // Catch coming pipeline events from the websocket broadcast thread
+    socket.on("receive_message", (incomingData) => {
+      // If message is for the currently opened chat room workspace, append it
+      if (activeChannel && incomingData.room_id === activeChannel.conversation_id) {
+        setMessages((prev) => [...prev, {
+          message_id: Date.now(),
+          sender_id: incomingData.sender_id,
+          message_text: incomingData.text,
+          created_at: new Date(incomingData.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }]);
+      }
+
+      // Update the left conversation panel's item previews in real-time
+      setConversations((prev) => 
+        prev.map(c => c.conversation_id === incomingData.room_id 
+          ? { ...c, last_message: incomingData.text, last_message_time: t('now') || 'Now' }
+          : c
+        )
+      );
+    });
+
+    return () => {
+      socket.off("receive_message");
+      socket.disconnect();
+    };
+  }, [activeChannel, currentUser]);
+
+  // Phase B: Sync inbox lists upon loading
   useEffect(() => {
     const fetchInbox = async () => {
       try {
         setLoadingChannels(true);
         const res = await API.get('/messages/conversations');
-        setConversations(res.data.length > 0 ? res.data : mockConversations);
+        setConversations(res.data || []);
       } catch (err) {
-        console.warn('Using mock conversation structures:', err.message);
-        setConversations(mockConversations);
+        console.error('Error fetching conversations inbox:', err);
+        setConversations([]);
       } finally {
         setLoadingChannels(false);
       }
@@ -47,57 +72,80 @@ export default function Messages() {
     fetchInbox();
   }, []);
 
-  // Fetch single chat timeline logs upon choosing active channel
+  // Phase C: Handle channel selection changes & room joining actions
   useEffect(() => {
-    if (!activeChannel) return;
+    if (!activeChannel || !currentUser) return;
+
+    // Join room pipeline
+    socket.emit("join_room", { roomId: activeChannel.conversation_id, userId: currentUser.id });
 
     const fetchChatLogData = async () => {
       try {
         setLoadingMessages(true);
         const res = await API.get(`/messages/${activeChannel.conversation_id}`);
-        setMessages(res.data.length > 0 ? res.data : (mockChatLog[activeChannel.conversation_id] || []));
+        setMessages(res.data || []);
       } catch (err) {
-        setMessages(mockChatLog[activeChannel.conversation_id] || []);
+        console.error('Error fetching conversation logs:', err);
+        setMessages([]);
       } finally {
         setLoadingMessages(false);
       }
     };
 
     fetchChatLogData();
-  }, [activeChannel]);
+  }, [activeChannel, currentUser]);
 
-  // Smooth layout anchors keeping track of the view horizon
+  // Handle smooth structural viewing focus limits
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (!newMessage.trim() || !activeChannel) return;
+    if (!newMessage.trim() || !activeChannel || !currentUser) return;
 
+    const messagePayload = {
+      room_id: activeChannel.conversation_id,
+      sender_id: currentUser.id,
+      text: newMessage.trim(),
+      timestamp: new Date().toISOString(),
+    };
+
+    // 1. Send across the realtime channel pipeline
+    socket.emit("send_message", messagePayload);
+
+    // 2. Optimistically paint interface frame locally
     const localMsgObj = {
       message_id: Date.now(),
-      sender_id: 1, // Simulating logged-in user context identity
-      message_text: newMessage,
-      created_at: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      sender_id: currentUser.id,
+      message_text: messagePayload.text,
+      created_at: new Date(messagePayload.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
     setMessages((prev) => [...prev, localMsgObj]);
-    const messagePayloadText = newMessage;
     setNewMessage('');
 
+    // Update index preview logs tracking item state
+    setConversations((prev) => 
+      prev.map(c => c.conversation_id === activeChannel.conversation_id 
+        ? { ...c, last_message: messagePayload.text, last_message_time: t('now') || 'Now' }
+        : c
+      )
+    );
+
+    // 3. Commit backend database persistence records
     try {
       await API.post('/messages/send', {
         conversationId: activeChannel.conversation_id,
-        text: messagePayloadText
+        text: messagePayload.text
       });
     } catch (err) {
-      console.error('Failed backend message syncing, keeping layout state local.', err);
+      console.error('Failed API pipeline back-syncing logs.', err);
     }
   };
 
   const filteredChannels = conversations.filter(c => 
-    c.peer_name.toLowerCase().includes(searchQuery.toLowerCase())
+    c.peer_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -108,11 +156,11 @@ export default function Messages() {
         <div className={`flex flex-col border-r border-gray-100 ${activeChannel ? 'hidden md:flex' : 'flex'}`}>
           <div className="p-5 border-b border-gray-100 space-y-4">
             <div>
-              <h1 className="text-xl font-black text-gray-950 tracking-tight">Messages</h1>
+              <h1 className="text-xl font-black text-gray-950 tracking-tight">{t('navMessages')}</h1>
               <p className="text-xs text-gray-400 mt-0.5">Coordinate logistics with other members</p>
             </div>
             
-            {/* Search Input */}
+            {/* Search Input Framework */}
             <div className="relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" size={15} />
               <input
@@ -147,12 +195,12 @@ export default function Messages() {
                     }`}
                   >
                     <div className="h-10 w-10 rounded-full bg-[#005A36]/10 text-[#005A36] font-bold text-sm flex items-center justify-center border border-[#005A36]/5 shrink-0">
-                      {channel.peer_name.charAt(0)}
+                      {channel.peer_name?.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <p className={`text-xs ${isSelected ? 'font-black' : 'font-bold text-gray-900'} truncate`}>{channel.peer_name}</p>
-                        <span className="text-[10px] text-gray-400 whitespace-nowrap">{channel.last_message_time || 'Now'}</span>
+                        <span className="text-[10px] text-gray-400 whitespace-nowrap">{channel.last_message_time || t('now') || 'Now'}</span>
                       </div>
                       <p className={`text-[11px] truncate mt-0.5 ${isSelected ? 'text-[#005A36]/80 font-medium' : 'text-gray-400'}`}>
                         {channel.last_message || 'Tap to open chat room'}
@@ -178,12 +226,12 @@ export default function Messages() {
                   <ArrowLeft size={16} />
                 </button>
                 <div className="h-9 w-9 rounded-full bg-[#005A36] text-white font-black text-xs flex items-center justify-center shadow-xs">
-                  {activeChannel.peer_name.charAt(0)}
+                  {activeChannel.peer_name?.charAt(0)}
                 </div>
                 <div>
                   <h2 className="text-xs font-black text-gray-900 tracking-tight">{activeChannel.peer_name}</h2>
                   <p className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> EcoLend Verified
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" /> {t('verifiedLender') || "EcoLend Verified"}
                   </p>
                 </div>
               </div>
@@ -196,18 +244,18 @@ export default function Messages() {
                   </div>
                 ) : (
                   messages.map((msg) => {
-                    const isMe = msg.sender_id === 1; // Align context layout indicators
+                    const isMe = msg.sender_id === currentUser?.id;
                     return (
-                      <div key={msg.message_id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                      <div key={msg.message_id || msg.id} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                         <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl shadow-xs text-xs font-medium leading-relaxed ${
                           isMe 
                             ? 'bg-[#005A36] text-white rounded-br-none' 
                             : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'
                         }`}>
-                          <p>{msg.message_text}</p>
+                          <p>{msg.message_text || msg.text}</p>
                         </div>
                         <div className="flex items-center gap-1 mt-1 px-1 text-[9px] font-semibold text-gray-400">
-                          <span>{msg.created_at}</span>
+                          <span>{msg.created_at || new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           {isMe && <CheckCheck size={11} className="text-emerald-600" />}
                         </div>
                       </div>
@@ -236,7 +284,7 @@ export default function Messages() {
               </form>
             </>
           ) : (
-            // Idle State Canvas
+            // Idle State Canvas Workspace
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-white m-4 rounded-[1.5rem] border border-gray-100">
               <div className="h-12 w-12 rounded-2xl bg-gray-50 text-gray-400 border border-gray-100 flex items-center justify-center mb-3 shadow-2xs">
                 <MessageSquare size={20} />
