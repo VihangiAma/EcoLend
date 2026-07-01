@@ -1,14 +1,24 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Send, Search, CheckCheck, MessageSquare, ArrowLeft } from 'lucide-react';
 import { io } from 'socket.io-client';
 import API from '../api/axios';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useChat } from '../contexts/ChatContext';
 
-// Connect socket connection to backend application framework port
-const socket = io("http://localhost:5000", { autoConnect: false });
+// Connect socket connection to backend application framework port - Single instance
+const socket = io("http://localhost:5000", { 
+  autoConnect: false,
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionDelayMax: 5000,
+  reconnectionAttempts: 5
+});
 
 export default function Messages() {
   const { t } = useLanguage();
+  const { updateUnreadCount, clearUnreadCount } = useChat();
+  const location = useLocation();
   const [conversations, setConversations] = useState([]);
   const [activeChannel, setActiveChannel] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -16,22 +26,44 @@ export default function Messages() {
   const [loadingChannels, setLoadingChannels] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [socketConnected, setSocketConnected] = useState(false);
   const chatBottomRef = useRef(null);
+  const hasInitialized = useRef(false);
+  const activeChannelRef = useRef(activeChannel);
+
+  // Update ref whenever activeChannel changes
+  useEffect(() => {
+    activeChannelRef.current = activeChannel;
+  }, [activeChannel]);
 
   // Safe parsing of authenticated active context tracking parameters
   const userSessionData = localStorage.getItem("user");
   const currentUser = userSessionData ? JSON.parse(userSessionData) : null;
 
-  // Phase A: Handle Socket connection and active message listeners
+  // Phase A: Initialize Socket connection ONCE on component mount
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser || hasInitialized.current) return;
+    
+    hasInitialized.current = true;
+    console.log('🔗 Initializing Socket.io connection...');
     
     socket.connect();
 
-    // Catch coming pipeline events from the websocket broadcast thread
+    socket.on("connect", () => {
+      console.log('✅ Socket connected:', socket.id);
+      setSocketConnected(true);
+    });
+
+    socket.on("disconnect", () => {
+      console.log('❌ Socket disconnected');
+      setSocketConnected(false);
+    });
+
+    // Catch incoming messages from the websocket
     socket.on("receive_message", (incomingData) => {
-      // If message is for the currently opened chat room workspace, append it
-      if (activeChannel && incomingData.room_id === activeChannel.conversation_id) {
+      console.log('📨 Received message in room:', incomingData.room_id);
+      // Use ref to get current activeChannel value
+      if (activeChannelRef.current && incomingData.room_id === activeChannelRef.current.conversation_id) {
         setMessages((prev) => [...prev, {
           message_id: Date.now(),
           sender_id: incomingData.sender_id,
@@ -50,42 +82,77 @@ export default function Messages() {
     });
 
     return () => {
+      // Don't disconnect on unmount - keep connection alive
+      // Just remove listeners
+      socket.off("connect");
+      socket.off("disconnect");
       socket.off("receive_message");
-      socket.disconnect();
     };
-  }, [activeChannel, currentUser]);
+  }, [currentUser]); // Only depend on currentUser, not activeChannel
 
-  // Phase B: Sync inbox lists upon loading
+  // Phase B: Fetch conversations list on component mount and calculate unread count
   useEffect(() => {
     const fetchInbox = async () => {
       try {
         setLoadingChannels(true);
         const res = await API.get('/messages/conversations');
-        setConversations(res.data || []);
+        const conversationList = res.data || [];
+        setConversations(conversationList);
+        console.log('✅ Conversations loaded:', conversationList.length);
+
+        // Calculate unread count (conversations that have messages and aren't currently open)
+        // For now, we'll mark all conversations as having 1 unread each if there are unviewed messages
+        const unreadCount = conversationList.length > 0 ? conversationList.length : 0;
+        updateUnreadCount(unreadCount);
+        console.log('📬 Unread conversations:', unreadCount);
+
+        // If coming from ItemDetail with selectedConversation, set it as active
+        if (location.state?.selectedConversation) {
+          const selected = conversationList.find(c => c.conversation_id === location.state.selectedConversation);
+          if (selected) {
+            setActiveChannel(selected);
+            console.log('📌 Selected conversation:', selected.conversation_id);
+            // When opening a conversation, decrement unread count
+            updateUnreadCount(Math.max(0, unreadCount - 1));
+          }
+        }
       } catch (err) {
-        console.error('Error fetching conversations inbox:', err);
+        console.error('❌ Error fetching conversations inbox:', err);
         setConversations([]);
       } finally {
         setLoadingChannels(false);
       }
     };
-    fetchInbox();
-  }, []);
+    
+    if (currentUser) {
+      fetchInbox();
+    }
+  }, []); // Empty dependency - only run once on mount
 
   // Phase C: Handle channel selection changes & room joining actions
   useEffect(() => {
     if (!activeChannel || !currentUser) return;
 
-    // Join room pipeline
-    socket.emit("join_room", { roomId: activeChannel.conversation_id, userId: currentUser.id });
+    console.log('🏠 Joining room:', activeChannel.conversation_id);
+    
+    // When user opens a conversation, decrement unread count
+    clearUnreadCount();
+    
+    // Join room pipeline with conversation_id as room identifier
+    socket.emit("join_room", { 
+      roomId: activeChannel.conversation_id, 
+      userId: currentUser.id 
+    });
 
+    // Fetch chat history for this conversation
     const fetchChatLogData = async () => {
       try {
         setLoadingMessages(true);
         const res = await API.get(`/messages/${activeChannel.conversation_id}`);
+        console.log('✅ Chat history loaded:', res.data?.length, 'messages');
         setMessages(res.data || []);
       } catch (err) {
-        console.error('Error fetching conversation logs:', err);
+        console.error('❌ Error fetching conversation logs:', err);
         setMessages([]);
       } finally {
         setLoadingMessages(false);
@@ -93,7 +160,9 @@ export default function Messages() {
     };
 
     fetchChatLogData();
-  }, [activeChannel, currentUser]);
+    
+    // No cleanup needed - we want to stay in the room
+  }, [activeChannel?.conversation_id, currentUser?.id]); // Only depend on specific IDs, not the whole objects
 
   // Handle smooth structural viewing focus limits
   useEffect(() => {
@@ -111,10 +180,12 @@ export default function Messages() {
       timestamp: new Date().toISOString(),
     };
 
+    console.log('Sending message:', messagePayload);
+
     // 1. Send across the realtime channel pipeline
     socket.emit("send_message", messagePayload);
 
-    // 2. Optimistically paint interface frame locally
+    // 2. Optimistically paint interface frame locally (match database schema field names)
     const localMsgObj = {
       message_id: Date.now(),
       sender_id: currentUser.id,
@@ -139,8 +210,9 @@ export default function Messages() {
         conversationId: activeChannel.conversation_id,
         text: messagePayload.text
       });
+      console.log('Message saved to database');
     } catch (err) {
-      console.error('Failed API pipeline back-syncing logs.', err);
+      console.error('Failed API pipeline back-syncing logs:', err.response?.data || err.message);
     }
   };
 

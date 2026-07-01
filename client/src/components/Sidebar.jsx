@@ -1,17 +1,19 @@
 import { Home, Search, MessageSquare, Heart, Package, User, Settings } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import { useLanguage } from "../contexts/LanguageContext"; // ✅ Step 1: Import bilingual custom context hook
+import { useLanguage } from "../contexts/LanguageContext";
+import { useChat } from "../contexts/ChatContext";
 
 export default function Sidebar() {
   const location = useLocation();
-  const { t } = useLanguage(); // ✅ Step 2: Extract your global translation engine
+  const { t } = useLanguage();
+  const { unreadCount } = useChat();
 
   // Array configuration updated to use translation dictionary dynamic pointer keys
   const menuItems = [
     { icon: Home, labelKey: "navHome", path: "/" },
     { icon: Search, labelKey: "navBrowse", path: "/browse" },
-    { icon: MessageSquare, labelKey: "navMessages", path: "/messages", badge: 3 },
-    { icon: Heart, labelKey: "navFavorites", path: "/favorites", fallbackLabel: "Favorites" }, // Use custom keys or extend context dict
+    { icon: MessageSquare, labelKey: "navMessages", path: "/messages", showUnread: true },
+    { icon: Heart, labelKey: "navFavorites", path: "/favorites", fallbackLabel: "Favorites" },
     { icon: Package, labelKey: "navMyItems", path: "/my-items", fallbackLabel: "My Items" },
     { icon: User, labelKey: "navProfile", path: "/profile" },
   ];
@@ -42,9 +44,9 @@ export default function Sidebar() {
                 {/* Dynamically reads translation stream according to active language */}
                 <span>{item.fallbackLabel ? item.fallbackLabel : t(item.labelKey)}</span>
               </div>
-              {item.badge && (
-                <span className="bg-yellow-400 text-xs font-bold px-2 py-0.5 rounded-full text-black">
-                  {item.badge}
+              {item.showUnread && unreadCount > 0 && (
+                <span className="bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full min-w-fit">
+                  {unreadCount > 99 ? '99+' : unreadCount}
                 </span>
               )}
             </Link>
@@ -52,7 +54,7 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Settings at Bottom - ✅ Conditional styling fixed based on location routing active state */}
+      {/* Settings at Bottom */}
       <Link
         to="/settings"
         className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${

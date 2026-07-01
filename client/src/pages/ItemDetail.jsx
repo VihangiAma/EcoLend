@@ -2,14 +2,15 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapPin, ShieldCheck, ArrowLeft, Star, Calendar, MessageSquare, Info } from 'lucide-react';
 import API from '../api/axios';
-import { useLanguage } from '../contexts/LanguageContext'; // ✅ Step 1: Import bilingual custom context hook
+import { useLanguage } from '../contexts/LanguageContext';
 
 export default function ItemDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { t } = useLanguage(); // ✅ Step 2: Extract your global translation engine
+  const { t } = useLanguage();
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [chatLoading, setChatLoading] = useState(false);
 
   useEffect(() => {
     const fetchItem = async () => {
@@ -24,15 +25,56 @@ export default function ItemDetail() {
     };
     fetchItem();
   }, [id]);
-  const startNegotiationChat = () => {
-  const currentUserId = JSON.parse(localStorage.getItem("user"))?.id;
-  // Unique composite room structure channel tracking route
-  const roomId = `${currentUserId}_${item.owner_id}`;
-  navigate(`/messages/${roomId}`);
-};
 
-// Bind this method handler to your chat action button inside ItemDetail.jsx:
-// <button onClick={startNegotiationChat} className="..."> Chat </button>
+  const startNegotiationChat = async () => {
+    const userData = localStorage.getItem("user");
+    if (!userData) {
+      alert("Please login to chat");
+      navigate("/login");
+      return;
+    }
+    
+    const currentUser = JSON.parse(userData);
+    
+    if (!item || !item.owner_id) {
+      alert("Item owner information not available");
+      return;
+    }
+
+    if (currentUser.id === item.owner_id) {
+      alert("You cannot chat with yourself");
+      return;
+    }
+
+    setChatLoading(true);
+    try {
+      console.log('Starting chat with:', { peer_id: item.owner_id, item_id: id });
+      console.log('Current user:', currentUser);
+      
+      const token = localStorage.getItem('token');
+      console.log('Token in storage:', token ? `${token.substring(0, 20)}...` : 'NOT FOUND');
+      
+      // Create or get conversation
+      const res = await API.post('/messages/create-conversation', {
+        peer_id: item.owner_id,
+        item_id: id
+      });
+      
+      console.log('✅ Conversation created:', res.data);
+      const conversationId = res.data.conversationId;
+      navigate(`/messages`, { state: { selectedConversation: conversationId } });
+    } catch (err) {
+      console.error('❌ Full error response:', {
+        status: err.response?.status,
+        error: err.response?.data?.error,
+        details: err.response?.data?.details,
+        message: err.message
+      });
+      alert(`Failed to start chat: ${err.response?.data?.error || err.message}`);
+    } finally {
+      setChatLoading(false);
+    }
+  };
 
   // ✅ Localized Loading View Container Screen
   if (loading) {
@@ -165,8 +207,13 @@ export default function ItemDetail() {
               <button className="sm:col-span-3 w-full bg-[#005A36] hover:bg-[#004227] text-white py-4 px-6 rounded-xl font-extrabold text-sm tracking-wide transition-all active:scale-[0.99] shadow-md shadow-emerald-900/10 flex items-center justify-center gap-2">
                 <Calendar size={16} /> {t('requestBorrow')}[cite: 1]
               </button>
-              <button className="sm:col-span-1 w-full bg-white border border-gray-300 hover:bg-gray-50 text-gray-700 py-4 px-4 rounded-xl font-extrabold text-sm transition-all active:scale-[0.99] flex items-center justify-center gap-2">
-                <MessageSquare size={16} className="text-gray-400" /> {t('chatBtn')}[cite: 1]
+              <button 
+                onClick={startNegotiationChat}
+                disabled={chatLoading || !item}
+                className="sm:col-span-1 w-full bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 py-4 px-4 rounded-xl font-extrabold text-sm transition-all active:scale-[0.99] flex items-center justify-center gap-2"
+              >
+                <MessageSquare size={16} className="text-gray-400" /> 
+                {chatLoading ? "..." : t('chatBtn')}[cite: 1]
               </button>
             </div>
 

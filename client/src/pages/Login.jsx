@@ -12,13 +12,42 @@ export default function Login() {
   const handleSubmit = async e => {
     e.preventDefault();
     try {
+      console.log('🔐 Login attempt with:', { email: form.email });
       const res = await axios.post('http://localhost:5000/api/auth/login', form);
+      
+      console.log('📨 Login response received:', {
+        hasToken: !!res.data.token,
+        tokenLength: res.data.token?.length,
+        tokenPreview: res.data.token?.substring(0, 30),
+        user: res.data.user
+      });
+
+      if (!res.data.token) {
+        throw new Error('No token in response');
+      }
+
+      // Store token
       localStorage.setItem('token', res.data.token);
-      localStorage.setItem('user', JSON.stringify(res.data.user)); 
+      localStorage.setItem('user', JSON.stringify(res.data.user));
+      
+      // Verify storage
+      const storedToken = localStorage.getItem('token');
+      console.log('✅ Token stored in localStorage:', {
+        stored: !!storedToken,
+        matches: storedToken === res.data.token,
+        preview: storedToken?.substring(0, 30)
+      });
+
+      if (!storedToken) {
+        throw new Error('Failed to store token in localStorage');
+      }
+
+      console.log('🚀 Login successful, navigating to home');
       navigate('/');
       window.location.reload();
     } catch (err) {
-      alert('Login failed: ' + (err.response?.data?.error || 'Server error'));
+      console.error('❌ Login error:', err);
+      alert('Login failed: ' + (err.response?.data?.error || err.message || 'Server error'));
     }
   };
 

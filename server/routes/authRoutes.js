@@ -12,8 +12,8 @@ const verifyToken = require('../middleware/auth');
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: 'your-email@gmail.com', // Replace with your Gmail
-    pass: 'your-app-password'     // Replace with your 16-character App Password
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
   }
 });
 
@@ -117,7 +117,7 @@ router.post('/forgot-password', async (req, res) => {
     const resetLink = `http://localhost:3000/reset-password/${token}`;
     
     await transporter.sendMail({
-      from: '"EcoLend Support" <your-email@gmail.com>',
+      from: `"EcoLend Support" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: 'Password Reset Request',
       html: `<p>Click <a href="${resetLink}">here</a> to reset your password. This link expires in 1 hour.</p>`
