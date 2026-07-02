@@ -106,6 +106,55 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Update item by ID
+router.put('/:id', verifyToken, async (req, res) => {
+  const { title, description, category, price_per_day, image_url } = req.body;
+  const itemId = req.params.id;
+
+  try {
+    await db.execute(
+      `UPDATE items
+       SET title = ?, description = ?, category = ?, price_per_day = ?, image_url = COALESCE(?, image_url)
+       WHERE item_id = ? AND owner_id = ?`,
+      [title, description, category, price_per_day, image_url, itemId, req.userId]
+    );
+    res.json({ success: true, message: 'Item updated successfully' });
+  } catch (err) {
+    console.error('Update item error:', err.message);
+    res.status(500).json({ error: 'Failed to update item' });
+  }
+});
+
+// Toggle item status
+router.patch('/:id/status', verifyToken, async (req, res) => {
+  const { status } = req.body;
+  const itemId = req.params.id;
+
+  try {
+    await db.execute(
+      `UPDATE items SET status = ? WHERE item_id = ? AND owner_id = ?`,
+      [status, itemId, req.userId]
+    );
+    res.json({ success: true, message: 'Item status updated' });
+  } catch (err) {
+    console.error('Update status error:', err.message);
+    res.status(500).json({ error: 'Failed to update item status' });
+  }
+});
+
+// Delete item by ID
+router.delete('/:id', verifyToken, async (req, res) => {
+  const itemId = req.params.id;
+
+  try {
+    await db.execute(`DELETE FROM items WHERE item_id = ? AND owner_id = ?`, [itemId, req.userId]);
+    res.json({ success: true, message: 'Item deleted successfully' });
+  } catch (err) {
+    console.error('Delete item error:', err.message);
+    res.status(500).json({ error: 'Failed to delete item' });
+  }
+});
+
 // Add new item
 // ✅ Added verifyToken middleware to dynamically read the logged-in user
 router.post('/add', verifyToken, upload.single('image'), async (req, res) => {

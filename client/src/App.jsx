@@ -15,6 +15,7 @@ import Browse from "./pages/Browse";
 import Messages from "./pages/Messages";
 import Settings from "./pages/Settings";
 import Diagnostic from "./pages/Diagnostic";
+import MyItems from "./pages/MyItems";
 import { LanguageProvider } from "./contexts/LanguageContext";
 
 
@@ -59,6 +60,7 @@ function App() {
                   <Route path="/reset-password/:token" element={<ResetPassword />} />
                   <Route path="/browse" element={<Browse />}  />
                   <Route path="/messages" element={<Messages />} />
+                  <Route path="/my-items" element={<PrivateRoute><MyItems /></PrivateRoute>} />
                   <Route path="/settings" element={<Settings />} />
                   <Route path="/diagnostic" element={<Diagnostic />} />
                    

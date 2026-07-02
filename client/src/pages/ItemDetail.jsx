@@ -188,7 +188,7 @@ export default function ItemDetail() {
                 <div>
                   <p className="font-black text-gray-950 text-base">{item.owner_name || t('verifiedMember')}</p>
                   <p className="text-[11px] text-[#005A36] font-bold flex items-center gap-1 mt-0.5">
-                    <ShieldCheck size={14} /> {t('verifiedLender')}[cite: 1]
+                    <ShieldCheck size={14} /> {t('verifiedLender')}
                   </p>
                 </div>
               </div>
@@ -205,7 +205,7 @@ export default function ItemDetail() {
             {/* Platform Operational Flow Actions Container */}
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <button className="sm:col-span-3 w-full bg-[#005A36] hover:bg-[#004227] text-white py-4 px-6 rounded-xl font-extrabold text-sm tracking-wide transition-all active:scale-[0.99] shadow-md shadow-emerald-900/10 flex items-center justify-center gap-2">
-                <Calendar size={16} /> {t('requestBorrow')}[cite: 1]
+                <Calendar size={16} /> {t('requestBorrow')}
               </button>
               <button 
                 onClick={startNegotiationChat}
@@ -213,7 +213,7 @@ export default function ItemDetail() {
                 className="sm:col-span-1 w-full bg-white border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed text-gray-700 py-4 px-4 rounded-xl font-extrabold text-sm transition-all active:scale-[0.99] flex items-center justify-center gap-2"
               >
                 <MessageSquare size={16} className="text-gray-400" /> 
-                {chatLoading ? "..." : t('chatBtn')}[cite: 1]
+                {chatLoading ? "..." : t('chatBtn')}
               </button>
             </div>
 
